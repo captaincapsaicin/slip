@@ -1,11 +1,11 @@
 import argparse
 import json
 
-from experiment import run_regression_experiment
+import experiment
 
 def main(kwargs_json):
     kwargs = json.loads(kwargs_json)
-    metrics = run_regression_experiment(**kwargs)
+    metrics = experiment.run_regression_experiment(**kwargs)
     print(metrics)  # TODO(nthomas) make this output to a log file somewhere... along with the parameters
 
 
