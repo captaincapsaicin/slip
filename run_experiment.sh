@@ -23,4 +23,4 @@
 ## Command(s) to run:
 module load ml/tensorflow/2.5.0-py37
 source activate slip
-python run_regression_main.py $1
+python run_regression_main.py "$1"
