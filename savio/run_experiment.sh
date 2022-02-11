@@ -6,19 +6,14 @@
 #SBATCH --qos=songlab_htc3_normal
 #SBATCH --partition=savio3_htc
 #
-# Number of nodes:
-#SBATCH --nodes=1
-#
-#SBATCH --ntasks-per-node=40
+# Number of tasks: https://github.com/ucberkeley/savio-training-parallel-2016/blob/master/parallel.md#parallel-job-submission
+#SBATCH --ntasks=1
 #
 # Processors per task:
 #SBATCH --cpus-per-task=1
 #
 # Wall clock limit:
 #SBATCH --time=06:00:00
-#
-# Memory required:
-#SBATCH --mem=10G
 #
 # Output and email
 #SBATCH --output=/global/scratch/projects/fc_songlab/nthomas/slip/log/regression_%j.out
