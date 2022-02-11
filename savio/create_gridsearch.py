@@ -35,7 +35,8 @@ def main():
     json_lines = [json.dumps(dict(l, **defaults))
                   for l in product_dict(**options)]
     with open('regression_params.json', 'w') as f:
-        f.writelines(json_lines)
+        f.write('\n'.join(json_lines))
+
 
 
 if __name__ == '__main__':
