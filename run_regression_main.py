@@ -14,11 +14,13 @@ def main(kwargs_json, output_dir, job_id):
     print(metrics)
 
     # update output with input kwargs
-    output = dict(metrics, **kwargs)
-    output_df = pd.DataFrame(output)
+    for metric_type in metrics.keys():
+        for kwarg, val in kwargs.items():
+            metrics[metric_type][kwarg] = val
 
+    # write metrics
     with open(Path(output_dir) / Path(job_id + '_metrics.json'), 'w') as f:
-        output_df.to_json(f)
+        pd.DataFrame(metrics).T.to_json(f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Take in a line of json')
