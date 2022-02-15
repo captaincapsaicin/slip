@@ -19,6 +19,7 @@
 #SBATCH --output=/global/scratch/projects/fc_songlab/nthomas/slip/log/{batch_id}/regression_%j.out
 #SBATCH --error=/global/scratch/projects/fc_songlab/nthomas/slip/log/{batch_id}/regression_%j.err
 ## Command(s) to run:
+module unload python
 module load ml/tensorflow/2.5.0-py37
 source activate slip
-python run_regression_main.py "$1"
+python /global/home/users/nthomas/git/slip/run_regression_main.py "$1"

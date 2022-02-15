@@ -73,7 +73,7 @@ def write_readable_options_and_defaults(options, defaults, directory):
         json.dump(options, f)
 
 
-command_string = "while read i ; do sbatch {job_directory}/run_experiment.sh $i; done < {job_directory}/regression_params.json"
+command_string = "while read i ; do sbatch {job_directory}/run_experiment.sh \"$i\"; done < {job_directory}/regression_params.json"
 def get_command_string(job_directory):
     return command_string.format(job_directory=job_directory)
 
