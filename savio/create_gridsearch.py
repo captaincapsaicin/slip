@@ -5,7 +5,7 @@ from pathlib import Path
 
 import json
 
-LOG_DIRECTORY = '~/scratch/slip/log/'
+LOG_DIRECTORY = '/global/scratch/projects/fc_songlab/nthomas/slip/log/'
 
 defaults = {
     'mogwai_filepath': "/global/home/users/nthomas/git/slip/data/3er7_1_A_model_state_dict.npz",
