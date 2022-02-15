@@ -3,6 +3,8 @@ from pathlib import Path
 
 import json
 
+import pandas as pd
+
 import experiment
 
 def main(kwargs_json, output_dir, job_id):
@@ -11,11 +13,12 @@ def main(kwargs_json, output_dir, job_id):
     print(kwargs)
     print(metrics)
 
-    output = {'metrics': metrics,
-              'kwargs': kwargs}
+    # update output with input kwargs
+    output = dict(metrics, **kwargs)
+    output_df = pd.DataFrame(output)
 
     with open(Path(output_dir) / Path(job_id + '_metrics.json'), 'w') as f:
-        json.dump(output, f)
+        output_df.to_json(f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Take in a line of json')
