@@ -83,7 +83,7 @@ def main():
     batch_id = get_batch_id()
     # create directory for the job
     job_directory = Path(LOG_DIRECTORY) / Path(batch_id)
-    job_directory.mkdir
+    job_directory.mkdir()
 
     # write regression_params to the job directory
     outfile = job_directory / Path('regression_params.json')
