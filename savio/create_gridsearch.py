@@ -94,7 +94,7 @@ def main():
     write_sbatch_script(batch_id, SBATCH_TEMPLATE, outfile)
 
     # write the options into a text file for human readability
-    write_readable_options_and_defaults(defaults, options, job_directory)
+    write_readable_options_and_defaults(options, defaults, job_directory)
 
     print(get_command_string(job_directory))
 
