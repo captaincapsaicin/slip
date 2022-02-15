@@ -61,7 +61,7 @@ def write_sbatch_script(batch_id, template_filepath, out_filepath):
     """Reads in a `template` and fills in the batch_id where necessary."""
     with open(template_filepath, 'r') as f:
         text = f.read()
-    text.format(batch_id=batch_id)
+    text = text.format(batch_id=batch_id)
     with open(out_filepath, 'w') as f:
         f.write(text)
 
@@ -94,7 +94,7 @@ def main():
     write_sbatch_script(batch_id, SBATCH_TEMPLATE, outfile)
 
     # write the options into a text file for human readability
-    write_readable_options_and_defaults(defaults, options, Path(LOG_DIRECTORY))
+    write_readable_options_and_defaults(defaults, options, job_directory)
 
     print(get_command_string(job_directory))
 
