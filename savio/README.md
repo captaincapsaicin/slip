@@ -10,7 +10,9 @@ Creates a file called regression_params.json
 Iterate over the lines in that file to create one job per task
 
 ```
-for line in `cat regression_params.json`; do sbatch run_experiment.sh "$line"; done
+while read i ; do sbatch run_experiment.sh $i; done < regression_params.json
 ```
 
 # Look up the results somehow.
+```
+```

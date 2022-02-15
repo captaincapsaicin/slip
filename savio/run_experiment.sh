@@ -15,11 +15,9 @@
 # Wall clock limit:
 #SBATCH --time=06:00:00
 #
-# Output and email
+# Output
 #SBATCH --output=/global/scratch/projects/fc_songlab/nthomas/slip/log/regression_%j.out
 #SBATCH --error=/global/scratch/projects/fc_songlab/nthomas/slip/log/regression_%j.err
-#SBATCH --mail-type=END,FAIL
-#SBATCH --mail-user=nthomas@berkeley.edu
 ## Command(s) to run:
 module load ml/tensorflow/2.5.0-py37
 source activate slip
