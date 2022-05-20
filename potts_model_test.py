@@ -23,6 +23,7 @@ from absl.testing import parameterized
 import numpy as np
 
 import potts_model
+import sampling
 
 
 class PottsModelTest(parameterized.TestCase):
@@ -47,7 +48,7 @@ class PottsModelTest(parameterized.TestCase):
 
     return weight_matrix, field_vec
 
-  def _build_problem(self,
+  def _get_landscape(self,
                      coupling_scale=1.0,
                      field_scale=1.0,
                      distance_threshold_for_nearby_residues=0,
@@ -69,13 +70,13 @@ class PottsModelTest(parameterized.TestCase):
 
   def test_get_couplings(self):
     weight_matrix, _ = self._basic_params()
-    potts_problem = self._build_problem()
-    np.testing.assert_allclose(potts_problem.weight_matrix, weight_matrix)
+    landscape = self._get_landscape()
+    np.testing.assert_allclose(landscape.weight_matrix, weight_matrix)
 
   def test_get_field_vec(self):
     _, field_vec = self._basic_params()
-    potts_problem = self._build_problem()
-    np.testing.assert_allclose(potts_problem.field_vec, field_vec)
+    landscape = self._get_landscape()
+    np.testing.assert_allclose(landscape.field_vec, field_vec)
 
   @parameterized.named_parameters(
       dict(
@@ -95,9 +96,9 @@ class PottsModelTest(parameterized.TestCase):
       ),
   )
   def test_wildtype_sequence_from_iseq(self, start_idx, end_idx):
-    problem = self._build_problem(start_idx=start_idx, end_idx=end_idx)
+    landscape = self._get_landscape(start_idx=start_idx, end_idx=end_idx)
     wt_seq = [0, 0, 0]
-    np.testing.assert_equal(problem.wildtype_sequence,
+    np.testing.assert_equal(landscape.wildtype_sequence,
                             wt_seq[start_idx:end_idx])
 
   @parameterized.named_parameters(
@@ -123,9 +124,9 @@ class PottsModelTest(parameterized.TestCase):
         if abs(i - j) < dist_thresh:
           weight_matrix[i, j, :, :] = 0.
 
-    potts_problem = self._build_problem(
+    landscape = self._get_landscape(
         distance_threshold_for_nearby_residues=dist_thresh)
-    np.testing.assert_allclose(potts_problem.weight_matrix, weight_matrix)
+    np.testing.assert_allclose(landscape.weight_matrix, weight_matrix)
 
   @parameterized.named_parameters(
       dict(
@@ -146,15 +147,16 @@ class PottsModelTest(parameterized.TestCase):
   )
   def test_subsequence_parameters(self, start_idx, end_idx):
     weight_matrix, field_vec = self._basic_params()
-    potts_problem = self._build_problem(start_idx=start_idx, end_idx=end_idx)
+    landscape = self._get_landscape(start_idx=start_idx, end_idx=end_idx)
     if end_idx is None:
       end_idx = field_vec.shape[0]
-    np.testing.assert_allclose(potts_problem.field_vec,
+    np.testing.assert_allclose(landscape.field_vec,
                                field_vec[start_idx:end_idx, :])
     np.testing.assert_allclose(
-        potts_problem.weight_matrix, weight_matrix[np.ix_(
+        landscape.weight_matrix, weight_matrix[np.ix_(
             range(start_idx, end_idx), range(start_idx, end_idx), range(20),
             range(20))])
+
 
   @parameterized.named_parameters(
       dict(
@@ -179,11 +181,12 @@ class PottsModelTest(parameterized.TestCase):
           expected_energy=np.array([13.5, 0.0]),
       ),
   )
-  def test_potts_energy(self, start_idx, end_idx, test_seqs, expected_energy):
-    potts_problem = self._build_problem(
+  def test_normalize(self, start_idx, end_idx, test_seqs, expected_energy):
+    landscape = self._get_landscape(
         start_idx=start_idx, end_idx=end_idx, center_fitness_to_wildtype=False)
+
     np.testing.assert_allclose(
-        potts_problem.evaluate(test_seqs), -expected_energy)
+        landscape.evaluate(test_seqs), -expected_energy)
 
   def test_single_mut_shift(self):
     offset = 1.0
@@ -191,11 +194,11 @@ class PottsModelTest(parameterized.TestCase):
     coupling_scale = 5.3
     epi_offset = -0.8
     wt_seq = [0, 0, 0]
-    base_problem = self._build_problem(
+    base_landscape = self._get_landscape(
         wt_seq=wt_seq,
         distance_threshold_for_nearby_residues=1,
     )
-    shifted_problem = self._build_problem(
+    shifted_landscape = self._get_landscape(
         wt_seq=wt_seq,
         distance_threshold_for_nearby_residues=1,
         field_scale=field_scale,
@@ -207,11 +210,11 @@ class PottsModelTest(parameterized.TestCase):
     for k in range(3):
       single_mutants += [k * [0] + [i] + (2 - k) * [0] for i in range(1, 20)]
 
-    base_wt_fit = base_problem.evaluate([wt_seq])[0]
-    shifted_wt_fit = shifted_problem.evaluate([wt_seq])[0]
+    base_wt_fit = base_landscape.evaluate([wt_seq])[0]
+    shifted_wt_fit = shifted_landscape.evaluate([wt_seq])[0]
 
-    base_single_fits = base_problem.evaluate(single_mutants) - base_wt_fit
-    shifted_single_fits = shifted_problem.evaluate(
+    base_single_fits = base_landscape.evaluate(single_mutants) - base_wt_fit
+    shifted_single_fits = shifted_landscape.evaluate(
         single_mutants) - shifted_wt_fit
 
     rescaled_single_fits = field_scale * (base_single_fits + offset)
@@ -224,9 +227,9 @@ class PottsModelTest(parameterized.TestCase):
     mut_offset = -4.5
     field_scale = 3.1
     wt_seq = [0, 0, 0]
-    base_problem = self._build_problem(
+    base_landscape = self._get_landscape(
         wt_seq=wt_seq, distance_threshold_for_nearby_residues=1)
-    shifted_problem = self._build_problem(
+    shifted_landscape = self._get_landscape(
         wt_seq=wt_seq,
         distance_threshold_for_nearby_residues=1,
         coupling_scale=coupling_scale,
@@ -234,19 +237,19 @@ class PottsModelTest(parameterized.TestCase):
         field_scale=field_scale,
         single_mut_offset=mut_offset)
 
-    base_wt_fit = base_problem.evaluate([wt_seq])[0]
-    shifted_wt_fit = shifted_problem.evaluate([wt_seq])[0]
+    base_wt_fit = base_landscape.evaluate([wt_seq])[0]
+    shifted_wt_fit = shifted_landscape.evaluate([wt_seq])[0]
 
     single_muts = [[19, 0, 0], [0, 18, 0]]
     double_muts = [[19, 18, 0]]
 
     # Single mutant fitness gains
-    base_single_fits = base_problem.evaluate(single_muts) - base_wt_fit
-    shifted_single_fits = shifted_problem.evaluate(single_muts) - shifted_wt_fit
+    base_single_fits = base_landscape.evaluate(single_muts) - base_wt_fit
+    shifted_single_fits = shifted_landscape.evaluate(single_muts) - shifted_wt_fit
 
     # double mutant fitness gains
-    base_double_fits = base_problem.evaluate(double_muts) - base_wt_fit
-    shifted_double_fits = shifted_problem.evaluate(double_muts) - shifted_wt_fit
+    base_double_fits = base_landscape.evaluate(double_muts) - base_wt_fit
+    shifted_double_fits = shifted_landscape.evaluate(double_muts) - shifted_wt_fit
 
     base_epi = base_double_fits[0] - np.sum(base_single_fits)
     shifted_epi = shifted_double_fits[0] - np.sum(shifted_single_fits)
@@ -256,11 +259,11 @@ class PottsModelTest(parameterized.TestCase):
     np.testing.assert_allclose(rescaled_epi, shifted_epi)
 
   def test_center_fitness_to_wildtype(self):
-    uncentered_problem = self._build_problem()
-    centered_problem = self._build_problem(center_fitness_to_wildtype=True)
-    wt_seq = uncentered_problem.wildtype_sequence
-    np.testing.assert_equal(wt_seq, centered_problem.wildtype_sequence)
-    np.testing.assert_allclose(centered_problem.evaluate([wt_seq]), [0])
+    uncentered_landscape = self._get_landscape()
+    centered_landscape = self._get_landscape(center_fitness_to_wildtype=True)
+    wt_seq = uncentered_landscape.wildtype_sequence
+    np.testing.assert_equal(wt_seq, centered_landscape.wildtype_sequence)
+    np.testing.assert_allclose(centered_landscape.evaluate([wt_seq]), [0])
 
   def test_init_asymmetric(self):
     weight_matrix = np.zeros((3, 3, 20, 20))
@@ -274,6 +277,49 @@ class PottsModelTest(parameterized.TestCase):
     with self.assertRaisesRegex(ValueError, 'symmetric'):
       potts_model.PottsModel(weight_matrix, field_vec, wt_seq=wt_seq)
 
+
+class TuningParamsTest(parameterized.TestCase):
+
+  def _get_params(self, seed):
+    """Weight matrix and field vector."""
+    rng = np.random.default_rng(seed)
+    weight_matrix = rng.normal(size=(4, 4, 20, 20))
+    # make symmetric
+    weight_matrix = weight_matrix + \
+        np.moveaxis(weight_matrix, (0, 1, 2, 3), (1, 0, 3, 2))
+    field_vec = rng.normal(size=(4, 20))
+    return weight_matrix, field_vec
+
+  def _get_landscape(self, seed, wt_seq=[0, 0, 0, 0], **kwargs):
+    """Return a small PottsModel landscape."""
+    weight_matrix, field_vec = self._get_params(seed)
+
+    return potts_model.PottsModel(
+        weight_matrix,
+        field_vec,
+        distance_threshold_for_nearby_residues=0,
+        wt_seq=wt_seq,
+        **kwargs)
+
+  @parameterized.named_parameters(
+      dict(
+          testcase_name='wt_0',
+          seed=0,
+          wt_seq=[0, 0, 0],
+      ),
+      dict(
+          testcase_name='wt_1',
+          seed=1,
+          wt_seq=[1, 1, 1],
+      ),
+  )
+  def test_normalize(self, wt_seq, seed):
+    landscape = self._get_landscape(wt_seq=wt_seq, seed=seed)
+    tuning_params = potts_model.get_tuning_parameters(landscape, normalize=True)
+    tuning_kwargs={'single_mut_offset': tuning_params[0], 'epi_offset': tuning_params[1], 'field_scale': tuning_params[2], 'coupling_scale': tuning_params[3]}
+    tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+    all_single_fitness = landscape.evaluate(sampling.get_all_single_mutants(wt_seq, landscape.vocab_size))
+    self.assertEqual(np.std(all_single_fitness), 1)
 
 class LoadMogwaiTest(parameterized.TestCase):
 
