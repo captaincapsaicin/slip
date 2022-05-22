@@ -16,18 +16,15 @@
 """Potts models derived from direct coupling analysis (DCA)."""
 
 import functools
-from typing import Optional, Sequence
 
 import numpy as np
 
 import utils
 
 
-
-
 def _get_shifted_weights(weight_matrix,
                          wt_onehot_seq,
-                         epi_offset = 0.0):
+                         epi_offset=0.0):
   """Add correction for epistatic offset.
 
   Args:
@@ -139,6 +136,8 @@ def is_valid_couplings(couplings_llaa):
   return is_symmetric
 
 
+# TODO(nthomas) wt_seq cannot be set after the fact... need to reinstantiate the instance.
+#   clarify in accessors that wt_seq has no setter
 class PottsModel:
   """Black-box objective based on the negative energy of a Potts model.
 
@@ -179,14 +178,14 @@ class PottsModel:
                weight_matrix,
                field_vec,
                wt_seq,
-               coupling_scale = 1.0,
-               field_scale = 1.0,
-               single_mut_offset = 0.0,
-               epi_offset = 0.0,
-               start_idx = 0,
-               end_idx = None,
-               distance_threshold_for_nearby_residues = 1,
-               center_fitness_to_wildtype = True):
+               coupling_scale=1.0,
+               field_scale=1.0,
+               single_mut_offset=0.0,
+               epi_offset=0.0,
+               start_idx=0,
+               end_idx=None,
+               distance_threshold_for_nearby_residues=1,
+               center_fitness_to_wildtype=True):
     """Create an instance of this class.
 
     Args:
@@ -253,9 +252,7 @@ class PottsModel:
     self._field_scale = field_scale
     self._center_fitness_to_wildtype = center_fitness_to_wildtype
     if center_fitness_to_wildtype:
-      wt_array = np.array([
-          self.wildtype_sequence,
-      ])
+      wt_array = np.array([self.wildtype_sequence, ])
       self._wildtype_fitness = -self._potts_energy(wt_array).item()
 
   def evaluate(self, sequences):
@@ -295,32 +292,27 @@ class PottsModel:
   @property
   @functools.lru_cache()
   def epistasis_tensor(self):
-      """Returns the epistasis tensor with respect to the wildtype sequence
+    """Return the epistasis tensor with respect to the wildtype sequence.
 
-      Recall that epistasis is given by:
-      $$
-          \epsilon_{i \beta, j \gamma} =
-          H_{i \beta, j \gamma}
-          - H_{i a, j \gamma} - H_{i \beta, j a}
-          + H_{i a, j a}
-      $$
-      """
-      H = self.weight_matrix
-      L = H.shape[0]
-      A = H.shape[2]
-      epistasis_tensor = np.zeros_like(H)
+    Recall that epistasis is given by:
+      e_iAjB = H_iAjB - HiajB - HiAjb + Hiajb
+    """
+    H = self.weight_matrix
+    L = H.shape[0]
+    A = H.shape[2]
+    epistasis_tensor = np.zeros_like(H)
 
-      # TODO(nthomas) vectorize
-      for i in range(L):
-          for j in range(L):
-              a = self.wildtype_sequence[i]
-              b = self.wildtype_sequence[j]
-              for alpha in range(A):
-                  for beta in range(A):
-                      epistasis_term = H[i, j, alpha, beta] - \
-                          H[i, j, alpha, b] - H[i, j, a, beta] + H[i, j, a, b]
-                      epistasis_tensor[i, j, alpha, beta] = epistasis_term
-      return epistasis_tensor
+    # TODO(nthomas) vectorize
+    for i in range(L):
+      for j in range(L):
+        a = self.wildtype_sequence[i]
+        b = self.wildtype_sequence[j]
+        for alpha in range(A):
+          for beta in range(A):
+            epistasis_term = H[i, j, alpha, beta] - \
+                H[i, j, alpha, b] - H[i, j, a, beta] + H[i, j, a, b]
+            epistasis_tensor[i, j, alpha, beta] = epistasis_term
+    return epistasis_tensor
 
   def _potts_energy(self, sequences):
     """Compute the Potts model energy."""

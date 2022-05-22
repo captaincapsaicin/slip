@@ -154,9 +154,8 @@ class PottsModelTest(parameterized.TestCase):
                                field_vec[start_idx:end_idx, :])
     np.testing.assert_allclose(
         landscape.weight_matrix, weight_matrix[np.ix_(
-            range(start_idx, end_idx), range(start_idx, end_idx), range(20),
-            range(20))])
-
+            range(start_idx, end_idx), range(start_idx, end_idx),
+            range(20), range(20))])
 
   @parameterized.named_parameters(
       dict(
@@ -208,12 +207,14 @@ class PottsModelTest(parameterized.TestCase):
 
     single_mutants = []
     for k in range(3):
-      single_mutants += [k * [0] + [i] + (2 - k) * [0] for i in range(1, 20)]
+      single_mutants += [k * [0] + [i] +
+                         (2 - k) * [0] for i in range(1, 20)]
 
     base_wt_fit = base_landscape.evaluate([wt_seq])[0]
     shifted_wt_fit = shifted_landscape.evaluate([wt_seq])[0]
 
-    base_single_fits = base_landscape.evaluate(single_mutants) - base_wt_fit
+    base_single_fits = base_landscape.evaluate(
+        single_mutants) - base_wt_fit
     shifted_single_fits = shifted_landscape.evaluate(
         single_mutants) - shifted_wt_fit
 
@@ -228,14 +229,14 @@ class PottsModelTest(parameterized.TestCase):
     field_scale = 3.1
     wt_seq = [0, 0, 0]
     base_landscape = self._get_landscape(
-        wt_seq=wt_seq, distance_threshold_for_nearby_residues=1)
+      wt_seq=wt_seq, distance_threshold_for_nearby_residues=1)
     shifted_landscape = self._get_landscape(
-        wt_seq=wt_seq,
-        distance_threshold_for_nearby_residues=1,
-        coupling_scale=coupling_scale,
-        epi_offset=offset,
-        field_scale=field_scale,
-        single_mut_offset=mut_offset)
+      wt_seq=wt_seq,
+      distance_threshold_for_nearby_residues=1,
+      coupling_scale=coupling_scale,
+      epi_offset=offset,
+      field_scale=field_scale,
+      single_mut_offset=mut_offset)
 
     base_wt_fit = base_landscape.evaluate([wt_seq])[0]
     shifted_wt_fit = shifted_landscape.evaluate([wt_seq])[0]
@@ -278,49 +279,6 @@ class PottsModelTest(parameterized.TestCase):
       potts_model.PottsModel(weight_matrix, field_vec, wt_seq=wt_seq)
 
 
-class TuningParamsTest(parameterized.TestCase):
-
-  def _get_params(self, seed):
-    """Weight matrix and field vector."""
-    rng = np.random.default_rng(seed)
-    weight_matrix = rng.normal(size=(4, 4, 20, 20))
-    # make symmetric
-    weight_matrix = weight_matrix + \
-        np.moveaxis(weight_matrix, (0, 1, 2, 3), (1, 0, 3, 2))
-    field_vec = rng.normal(size=(4, 20))
-    return weight_matrix, field_vec
-
-  def _get_landscape(self, seed, wt_seq=[0, 0, 0, 0], **kwargs):
-    """Return a small PottsModel landscape."""
-    weight_matrix, field_vec = self._get_params(seed)
-
-    return potts_model.PottsModel(
-        weight_matrix,
-        field_vec,
-        distance_threshold_for_nearby_residues=0,
-        wt_seq=wt_seq,
-        **kwargs)
-
-  @parameterized.named_parameters(
-      dict(
-          testcase_name='wt_0',
-          seed=0,
-          wt_seq=[0, 0, 0],
-      ),
-      dict(
-          testcase_name='wt_1',
-          seed=1,
-          wt_seq=[1, 1, 1],
-      ),
-  )
-  def test_normalize(self, wt_seq, seed):
-    landscape = self._get_landscape(wt_seq=wt_seq, seed=seed)
-    tuning_params = potts_model.get_tuning_parameters(landscape, normalize=True)
-    tuning_kwargs={'single_mut_offset': tuning_params[0], 'epi_offset': tuning_params[1], 'field_scale': tuning_params[2], 'coupling_scale': tuning_params[3]}
-    tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
-    all_single_fitness = landscape.evaluate(sampling.get_all_single_mutants(wt_seq, landscape.vocab_size))
-    self.assertEqual(np.std(all_single_fitness), 1)
-
 class LoadMogwaiTest(parameterized.TestCase):
 
   def _write_mock_mogwai_state_dict(self, symmetric):
@@ -361,13 +319,14 @@ class LoadMogwaiTest(parameterized.TestCase):
 
   def test_asymmetric_load_raises(self):
     with self.assertRaisesRegex(ValueError, 'symmetric'):
-      potts_model.load_from_mogwai_npz(self._mock_mogwai_filepath_asymmetric)
+      potts_model.load_from_mogwai_npz(
+          self._mock_mogwai_filepath_asymmetric)
 
   def test_symmetric_load(self):
     landscape = potts_model.load_from_mogwai_npz(
         self._mock_mogwai_filepath_symmetric)
     np.testing.assert_allclose(landscape.weight_matrix,
-                                  landscape.weight_matrix.transpose(1, 0, 3, 2))
+                               landscape.weight_matrix.transpose(1, 0, 3, 2))
 
 
 if __name__ == '__main__':

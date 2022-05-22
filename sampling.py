@@ -15,8 +15,6 @@
 
 """Functions for sampling sequences."""
 
-from typing import Optional, Sequence
-
 import numpy as np
 
 
