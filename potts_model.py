@@ -141,37 +141,37 @@ def is_valid_couplings(couplings_llaa):
 class PottsModel:
     """Black-box objective based on the negative energy of a Potts model.
 
-      Model assumes no insert gap states.
+    Model assumes no insert gap states.
 
-      Tuning the Potts Model Objective:
+    Tuning the Potts Model Objective:
 
-      Includes parameters to independently control the mean of single mutant
-      fitness effects as well as pairwise epistasis on double mutants
-      (defined as F_{12}-F_{1}-F_{2}+F_{0}),
-      with respect to wildtype.
+    Includes parameters to independently control the mean of single mutant
+    fitness effects as well as pairwise epistasis on double mutants
+    (defined as F_{12}-F_{1}-F_{2}+F_{0}),
+    with respect to wildtype.
 
-      The single mutant fitness distribution is shifted
-      by modifying the fields h with x_0, the one-hot representation of
-      the wildtype:
+    The single mutant fitness distribution is shifted
+    by modifying the fields h with x_0, the one-hot representation of
+    the wildtype:
 
-              h' = h + single_mut_offset * x_0
+            h' = h + single_mut_offset * x_0
 
-      The mean of the pairwise epistasis distribution is shifted by modifying the
-      couplings H and fields h by
+    The mean of the pairwise epistasis distribution is shifted by modifying the
+    couplings H and fields h by
 
-              H' = H + epi_offset * x_0 (x_0)^T
-              h' = h + epi_offset * L x_0
+            H' = H + epi_offset * x_0 (x_0)^T
+            h' = h + epi_offset * L x_0
 
-      where L is the length of the sequence.
+    where L is the length of the sequence.
 
-      Afterwards, the distributions of the single mutant and pairwise epistasis
-      distributions are independently scaled by field_scale and coupling_scale
-      respectively by computing the energy E on a sequence x as
+    Afterwards, the distributions of the single mutant and pairwise epistasis
+    distributions are independently scaled by field_scale and coupling_scale
+    respectively by computing the energy E on a sequence x as
 
-              E = coupling_scale * 0.5*(x)^T H x + field_scale h^T x
-                    + (coupling_scale-field_scale) x_0^T H x
+            E = coupling_scale * 0.5*(x)^T H x + field_scale h^T x
+                + (coupling_scale-field_scale) x_0^T H x
 
-      There is also an option to filter interactions of nearby residues.
+    There is also an option to filter interactions of nearby residues.
     """
 
     def __init__(self,

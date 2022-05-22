@@ -26,6 +26,7 @@ import potts_model
 
 
 class PottsModelTest(parameterized.TestCase):
+    """Test class for potts_model."""
 
     def _basic_params(self):
         """Weight matrix and field vector for many test cases."""
@@ -278,7 +279,7 @@ class PottsModelTest(parameterized.TestCase):
 
 
 class LoadMogwaiTest(parameterized.TestCase):
-
+    """Test class for loading from Mogwai."""
     def _write_mock_mogwai_state_dict(self, symmetric):
         L = 10
         A = 5

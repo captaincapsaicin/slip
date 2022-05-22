@@ -25,6 +25,7 @@ import sampling
 
 
 class TuningParamsTest(parameterized.TestCase):
+    """Test class for tuning."""
 
     def _get_params(self, seed):
         """Weight matrix and field vector."""

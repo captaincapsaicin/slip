@@ -30,14 +30,14 @@ import utils
 
 
 def get_fraction_adaptive_singles(landscape: potts_model.PottsModel) -> float:
-    """Return the fraction of singles that are adaptive."""
+    """Returns the fraction of singles that are adaptive."""
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
     fraction_adaptive = (landscape.evaluate(all_singles) > 0).sum() / all_singles.shape[0]
     return fraction_adaptive
 
 
 def get_doubles_df(landscape, threshold, adaptive) -> pd.DataFrame:
-    """Return a dataframe with ['fitness', 'a_fitness', 'b_fitness', 'residual'] keys
+    """Returns a dataframe with ['fitness', 'a_fitness', 'b_fitness', 'residual'] keys
     That includes all combinations of singles that are above/below a given fitness threshold
     """
     wt_seq = landscape.wildtype_sequence
@@ -74,7 +74,7 @@ def get_doubles_df(landscape, threshold, adaptive) -> pd.DataFrame:
 
 def get_epistasis_stats(landscape: potts_model.PottsModel,
                         threshold: float = 0, adaptive: bool = True) -> Tuple[float, float]:
-    """Return statistics about epistasis for combinations of singles.
+    """Returns statistics about epistasis for combinations of singles.
 
     Mean epistasis effect size is defined as the average effect of epistasis when two single mutants
     from the selected set are combined. The rate of reciprocal sign epistasis is defined as the fraction
@@ -87,7 +87,7 @@ def get_epistasis_stats(landscape: potts_model.PottsModel,
       adaptive: If True, thresholded singles will have fitness >= `threshold`. If False,
         selected singles will have fitness < `threshold`.
 
-    Return:
+    Returns:
       A Tuple of length 2 where element [0] is the mean epistasis effect size
       and element [1] is the rate of reciprocal sign epistasis.
     """
@@ -103,7 +103,7 @@ def get_epistasis_stats(landscape: potts_model.PottsModel,
 
 
 def get_mean_single_effect(landscape: potts_model.PottsModel, threshold: float = 0, adaptive: bool = True) -> float:
-    """Return average effect size of singles.
+    """Returns average effect size of singles.
 
     Args:
       landscape: The landscape.
@@ -111,7 +111,7 @@ def get_mean_single_effect(landscape: potts_model.PottsModel, threshold: float =
       adaptive: If True, thresholded singles will have fitness >= `threshold`. If False,
         selected singles will have fitness < `threshold`.
 
-    Return:
+    Returns:
       The average effect size of the selected singles.
     """
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
@@ -124,7 +124,7 @@ def get_mean_single_effect(landscape: potts_model.PottsModel, threshold: float =
 
 
 def get_epistatic_horizon(landscape: potts_model.PottsModel) -> float:
-    """Return the epistatic horizon for the given landscape.
+    """Returns the epistatic horizon for the given landscape.
 
     The "epistatic horizon" is defined as the distance K from the wildtype at which, on average,
     epistatic contributions outweigh linear contributions from adaptive singles. This is the average
@@ -138,7 +138,7 @@ def get_epistatic_horizon(landscape: potts_model.PottsModel) -> float:
                {e_{+, +}}
     $$
 
-    Return:
+    Returns:
       The epistatic horizon.
     """
     mean_adaptive_epistasis, _ = get_epistasis_stats(landscape, threshold=0.0, adaptive=True)
@@ -148,13 +148,13 @@ def get_epistatic_horizon(landscape: potts_model.PottsModel) -> float:
 
 
 def get_single_std(landscape: potts_model.PottsModel) -> float:
-    """Return the standard deviation of single mutant effects."""
+    """Returns the standard deviation of single mutant effects."""
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
     return np.std(landscape.evaluate(all_singles))
 
 
 def get_landscape_stats(landscape: potts_model.PottsModel) -> dict:
-    """Return a dictionary of landscape statistics."""
+    """Returns a dictionary of landscape statistics."""
     reciprocal_adaptive_epistasis_effect, fraction_reciprocal_adaptive_epistasis = get_epistasis_stats(
         landscape, threshold=0.0, adaptive=True)
     stats_dict = {'fraction_adaptive_singles': get_fraction_adaptive_singles(landscape),
@@ -188,7 +188,7 @@ def get_coupling_scale(landscape: potts_model.PottsModel,
                        field_scale: float = 1.0,
                        single_mut_offset: float = 0.0,
                        epi_offset: float = 0.0) -> float:
-    """Return the scaling factor that would result in `epistatic_horizon`
+    """Returns the scaling factor that would result in `epistatic_horizon`
 
     Requires solving the equation for coupling_scale:
 
@@ -216,7 +216,7 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
                       fraction_reciprocal_adaptive_epistasis: Optional[float] = None,
                       epistatic_horizon: Optional[float] = None,
                       normalize_to_singles: bool = True) -> Dict[str, float]:
-    """Return the landscape tuning parameters.
+    """Returns the landscape tuning parameters.
 
     Args:
       landscape: A landscape.
@@ -230,7 +230,7 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
         is 1.0.
 
 
-    Return:
+    Returns:
       A dict of tuning parameters
       A tuple of [shift, shift, scale, scale] tuning parameters.
     """
