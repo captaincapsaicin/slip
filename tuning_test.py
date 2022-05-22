@@ -17,7 +17,9 @@
 
 from absl.testing import absltest
 from absl.testing import parameterized
+
 import numpy as np
+from scipy.special import comb
 
 import tuning
 import potts_model
@@ -60,23 +62,23 @@ class TuningParamsTest(parameterized.TestCase):
 
         all_single_fitness = tuned_landscape.evaluate(
             sampling.get_all_single_mutants(wt_seq, tuned_landscape.vocab_size))
-        np.testing.assert_equal(np.std(all_single_fitness), 1.0)
+        np.testing.assert_allclose(np.std(all_single_fitness), 1.0)
 
     @parameterized.named_parameters(
         dict(
-            testcase_name='tuning_2',
+            testcase_name='tuning_0',
             seed=2,
             wt_seq=[0, 0, 0, 0],
-            desired_stats_dict={'fraction_adaptive_singles': 0.1,
-                                'fraction_reciprocal_adaptive_epistasis': 0.4,
+            desired_stats_dict={'fraction_adaptive_singles': 0.4,
+                                'fraction_reciprocal_adaptive_epistasis': 0.9,
                                 'epistatic_horizon': 10}
         ),
         dict(
             testcase_name='tuning_1',
             seed=3,
             wt_seq=[1, 1, 1, 1],
-            desired_stats_dict={'fraction_adaptive_singles': 0.15,
-                                'fraction_reciprocal_adaptive_epistasis': 0.52,
+            desired_stats_dict={'fraction_adaptive_singles': 0.2,
+                                'fraction_reciprocal_adaptive_epistasis': 0.66,
                                 'epistatic_horizon': 20},
         ),
     )
@@ -92,8 +94,29 @@ class TuningParamsTest(parameterized.TestCase):
 
         tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
         actual_stats_dict = tuning.get_landscape_stats(tuned_landscape)
-        for stat in desired_stats_dict.keys():
-            self.assertEqual(desired_stats_dict[stat], actual_stats_dict[stat])
+
+        num_singles = len(wt_seq) * untuned_landscape.vocab_size
+        # Because we are adjusting quantiles, we can only get to within
+        # 1 / num_singles of the desired proportion
+        max_singles_proportion_error = 1 / num_singles
+        self.assertBetween(actual_stats_dict['fraction_adaptive_singles'],
+                           desired_stats_dict['fraction_adaptive_singles'] - max_singles_proportion_error,
+                           desired_stats_dict['fraction_adaptive_singles'] + max_singles_proportion_error)
+
+        untuned_fraction_adaptive_singles = tuning.get_landscape_stats(untuned_landscape)['fraction_adaptive_singles']
+
+        # TODO(nthomas) figure out why this, recomputing num_adaptive_singles, is not an integer, or close.
+        num_adaptive_singles = num_singles * untuned_fraction_adaptive_singles
+
+        num_adaptive_doubles = comb(num_adaptive_singles, 2)
+        max_epistatic_proportion_error = 1 / num_adaptive_doubles
+        # TODO(nthomas) add an error message when desired tuning is not possible
+        # TODO(nthomas) split these tests up into testing each tuning parameter separately
+        self.assertBetween(actual_stats_dict['fraction_reciprocal_adaptive_epistasis'],
+                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] - max_epistatic_proportion_error,
+                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] + max_epistatic_proportion_error)
+
+        self.assertEqual(desired_stats_dict['epistatic_horizon'], actual_stats_dict['epistatic_horizon'])
 
 
 if __name__ == '__main__':

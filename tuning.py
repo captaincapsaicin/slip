@@ -32,7 +32,7 @@ import utils
 def get_fraction_adaptive_singles(landscape: potts_model.PottsModel) -> float:
     """Returns the fraction of singles that are adaptive."""
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
-    fraction_adaptive = (landscape.evaluate(all_singles) > 0).sum() / all_singles.shape[0]
+    fraction_adaptive = (landscape.evaluate(all_singles) >= 0).sum() / all_singles.shape[0]
     return fraction_adaptive
 
 
@@ -173,13 +173,14 @@ def get_normalizing_field_scale(landscape: potts_model.PottsModel) -> float:
 def get_single_mut_offset(landscape: potts_model.PottsModel, fraction_adaptive_singles: float) -> float:
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
     single_fitness = landscape.evaluate(all_singles)
-    single_mut_offset = -np.quantile(single_fitness, q=1 - fraction_adaptive_singles)
+    single_mut_offset = -1 * np.quantile(single_fitness, q=1 - fraction_adaptive_singles)
     return single_mut_offset
 
 
 def get_epi_offset(landscape: potts_model.PottsModel, fraction_reciprocal_adaptive_epistasis: float) -> float:
     doubles_df = get_doubles_df(landscape, threshold=0.0, adaptive=True)
-    epi_offset = -np.quantile(doubles_df.fitness, q=1 - fraction_reciprocal_adaptive_epistasis)
+    # we want fraction to remain negative
+    epi_offset = -1 * np.quantile(doubles_df.fitness, q=fraction_reciprocal_adaptive_epistasis)
     return epi_offset
 
 
