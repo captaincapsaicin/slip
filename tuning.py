@@ -258,12 +258,18 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
         field_scale = get_normalizing_field_scale(landscape)
 
     if fraction_adaptive_singles is not None:
+        if not (fraction_adaptive_singles >= 0 and fraction_adaptive_singles <= 1.0):
+            raise ValueError(f'Invalid fraction: {fraction_adaptive_singles} must be between 0 and 1.')
         single_mut_offset = get_single_mut_offset(landscape, fraction_adaptive_singles)
 
     if fraction_reciprocal_adaptive_epistasis is not None:
+        if not (fraction_reciprocal_adaptive_epistasis >= 0 and fraction_reciprocal_adaptive_epistasis <= 1.0):
+            raise ValueError(f'Invalid fraction: {fraction_reciprocal_adaptive_epistasis} must be between 0 and 1.')
         epi_offset = get_epi_offset(landscape, fraction_reciprocal_adaptive_epistasis)
 
     if epistatic_horizon:
+        if not (epistatic_horizon >= 0):
+            raise ValueError(f'Invalid fraction: {epistatic_horizon} must be greater than 0.')
         coupling_scale = get_coupling_scale(landscape, epistatic_horizon, field_scale, single_mut_offset, epi_offset)
 
     tuning_kwargs = {'coupling_scale': coupling_scale,
