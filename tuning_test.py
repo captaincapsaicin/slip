@@ -32,10 +32,10 @@ class TuningParamsTest(parameterized.TestCase):
     def _get_params(self, seed):
         """Weight matrix and field vector."""
         rng = np.random.default_rng(seed)
-        weight_matrix = rng.normal(size=(4, 4, 20, 20))
+        weight_matrix = rng.standard_normal(size=(4, 4, 20, 20), dtype=np.float32)
         # make symmetric
         weight_matrix = weight_matrix + np.moveaxis(weight_matrix, (0, 1, 2, 3), (1, 0, 3, 2))
-        field_vec = rng.normal(size=(4, 20))
+        field_vec = rng.standard_normal(size=(4, 20), dtype=np.float32)
         return weight_matrix, field_vec
 
     def _get_landscape(self, seed, wt_seq=[0, 0, 0, 0], **kwargs):
@@ -66,11 +66,56 @@ class TuningParamsTest(parameterized.TestCase):
 
     @parameterized.named_parameters(
         dict(
+            testcase_name='adaptive_70',
+            seed=1,
+            wt_seq=[0, 0, 0, 0],
+            fraction_adaptive_singles=0.7,
+        ),
+        dict(
+            testcase_name='adaptive_10',
+            seed=2,
+            wt_seq=[0, 0, 0, 0],
+            fraction_adaptive_singles=0.1,
+        ),
+        dict(
+            testcase_name='adaptive_100',
+            seed=3,
+            wt_seq=[1, 1, 1, 1],
+            fraction_adaptive_singles=1.0,
+        ),
+        dict(
+            testcase_name='adaptive_0',
+            seed=4,
+            wt_seq=[1, 1, 1, 1],
+            fraction_adaptive_singles=0.0,
+        ),
+    )
+    def test_tune_fraction_adaptive_singles(self, wt_seq, seed, fraction_adaptive_singles):
+        untuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed)
+
+        tuning_kwargs = tuning.get_tuning_kwargs(
+            untuned_landscape,
+            fraction_adaptive_singles=fraction_adaptive_singles)
+
+        tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+        actual_stats_dict = tuning.get_landscape_stats(tuned_landscape)
+
+        num_singles = len(wt_seq) * untuned_landscape.vocab_size
+        # Because we are adjusting quantiles, we can only get to within
+        # 1 / num_singles of the desired proportion
+        max_singles_proportion_error = 1 / num_singles
+        self.assertBetween(actual_stats_dict['fraction_adaptive_singles'],
+                           fraction_adaptive_singles - max_singles_proportion_error,
+                           fraction_adaptive_singles + max_singles_proportion_error)
+
+
+    @parameterized.named_parameters(
+        dict(
             testcase_name='tuning_0',
             seed=2,
             wt_seq=[0, 0, 0, 0],
-            desired_stats_dict={'fraction_adaptive_singles': 0.4,
-                                'fraction_reciprocal_adaptive_epistasis': 0.9,
+            desired_stats_dict={'fraction_adaptive_singles': 0.7,
+                                'fraction_reciprocal_adaptive_epistasis': 0.5,
                                 'epistatic_horizon': 10}
         ),
         dict(

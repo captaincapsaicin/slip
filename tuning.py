@@ -32,7 +32,8 @@ import utils
 def get_fraction_adaptive_singles(landscape: potts_model.PottsModel) -> float:
     """Returns the fraction of singles that are adaptive."""
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
-    fraction_adaptive = (landscape.evaluate(all_singles) >= 0).sum() / all_singles.shape[0]
+    wt_fitness = landscape.evaluate(landscape.wildtype_sequence).item()
+    fraction_adaptive = (landscape.evaluate(all_singles) >= wt_fitness).sum() / all_singles.shape[0]
     return fraction_adaptive
 
 
@@ -103,7 +104,7 @@ def get_epistasis_stats(landscape: potts_model.PottsModel,
 
 
 def get_mean_single_effect(landscape: potts_model.PottsModel, threshold: float = 0, adaptive: bool = True) -> float:
-    """Returns average effect size of singles.
+    """Returns average effect size of singles for a given threshold.
 
     Args:
       landscape: The landscape.
@@ -130,12 +131,17 @@ def get_epistatic_horizon(landscape: potts_model.PottsModel) -> float:
     epistatic contributions outweigh linear contributions from adaptive singles. This is the average
     distance we can expect a greedy algorithm to perform well on the given landscape.
 
-    Let $s_{+}$ be the average adaptive single mutant effect. let $e_{+, +}$ be the average
+    Let $s_+$ be the average adaptive single mutant effect. let $e_{+,+}$ be the average
     epistatic effect for a pair of adaptive singles. Then K is defined as :
 
     $$
-    K = \\dfrac{e_{+, +} - 2 s_{+}}
-               {e_{+, +}}
+    K * s_+ + (K \\choose 2) e_{+,+} = 0
+    $$
+
+    Solving for K
+    $$
+    K = \\dfrac{e_{+,+} - 2 s_+}
+               {e_{+,+}}
     $$
 
     Returns:
@@ -193,7 +199,7 @@ def get_coupling_scale(landscape: potts_model.PottsModel,
 
     Requires solving the equation for coupling_scale:
 
-    K * field_scale (s_+ + field_scale) + (K choose 2) * coupling_scale (e_+ + epi_offset) = 0"""
+    K * field_scale (s_+ + field_scale) + (K choose 2) * coupling_scale (e_{+, +} + epi_offset) = 0"""
     adaptive_threshold = 0.0
     is_adaptive = True
 
@@ -216,7 +222,7 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
                       fraction_adaptive_singles: Optional[float] = None,
                       fraction_reciprocal_adaptive_epistasis: Optional[float] = None,
                       epistatic_horizon: Optional[float] = None,
-                      normalize_to_singles: bool = True) -> Dict[str, float]:
+                      normalize_to_singles: bool = False) -> Dict[str, float]:
     """Returns the landscape tuning parameters.
 
     Args:
@@ -225,7 +231,6 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
         this fraction is preserved in the initial landscape
       fraction_reciprocal_adaptive_epistasis: The fraction of adaptive (+, +) doubles that exhibit negative
         epistasis.
-
       epistatic_horizon: average distance at which epi effects out weigh singles
       normalize_to_singles: A boolean, when True, ensures that the standard deviation of single mutant effects
         is 1.0.
