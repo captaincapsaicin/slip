@@ -62,7 +62,7 @@ class TuningParamsTest(parameterized.TestCase):
 
         all_single_fitness = tuned_landscape.evaluate(
             sampling.get_all_single_mutants(wt_seq, tuned_landscape.vocab_size))
-        np.testing.assert_allclose(np.std(all_single_fitness), 1.0)
+        np.testing.assert_allclose(np.std(all_single_fitness), 1.0, rtol=1e-6)
 
     @parameterized.named_parameters(
         dict(
