@@ -49,6 +49,9 @@ def get_doubles_df(landscape, threshold, adaptive) -> pd.DataFrame:
     else:
         singles = df[df.fitness < threshold].sequence
 
+    if len(singles) < 2:
+        raise ValueError(f'Invalid Landscape: fewer than 2 singles for threshold {threshold}')
+
     doubles = []
     single_a = []
     single_b = []
@@ -173,14 +176,15 @@ def get_landscape_stats(landscape: potts_model.PottsModel) -> dict:
 
 def get_normalizing_field_scale(landscape: potts_model.PottsModel) -> float:
     std_singles = get_single_std(landscape)
-    return 1 / std_singles
+    return 1.0 / std_singles
 
 
 def get_single_mut_offset(landscape: potts_model.PottsModel, fraction_adaptive_singles: float) -> float:
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
     single_fitness = landscape.evaluate(all_singles)
     single_mut_offset = -1 * np.quantile(single_fitness, q=1 - fraction_adaptive_singles)
-    return single_mut_offset
+    # np.quantile returns float64 by default
+    return single_mut_offset.astype(np.float32)
 
 
 def get_epi_offset(landscape: potts_model.PottsModel, fraction_reciprocal_adaptive_epistasis: float) -> float:
@@ -250,13 +254,13 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
     pprint(get_landscape_stats(landscape))
 
     # compute tuning parameters
-    if normalize_to_singles:
+    if normalize_to_singles is not None:
         field_scale = get_normalizing_field_scale(landscape)
 
-    if fraction_adaptive_singles:
+    if fraction_adaptive_singles is not None:
         single_mut_offset = get_single_mut_offset(landscape, fraction_adaptive_singles)
 
-    if fraction_reciprocal_adaptive_epistasis:
+    if fraction_reciprocal_adaptive_epistasis is not None:
         epi_offset = get_epi_offset(landscape, fraction_reciprocal_adaptive_epistasis)
 
     if epistatic_horizon:

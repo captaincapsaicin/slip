@@ -98,13 +98,13 @@ class TuningParamsTest(parameterized.TestCase):
             fraction_adaptive_singles=fraction_adaptive_singles)
 
         tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
-        actual_stats_dict = tuning.get_landscape_stats(tuned_landscape)
+        actual_fraction_adaptive_singles = tuning.get_fraction_adaptive_singles(tuned_landscape)
 
-        num_singles = len(wt_seq) * untuned_landscape.vocab_size
+        num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
         # Because we are adjusting quantiles, we can only get to within
         # 1 / num_singles of the desired proportion
-        max_singles_proportion_error = 1 / num_singles
-        self.assertBetween(actual_stats_dict['fraction_adaptive_singles'],
+        max_singles_proportion_error = 1.0 / num_singles
+        self.assertBetween(actual_fraction_adaptive_singles,
                            fraction_adaptive_singles - max_singles_proportion_error,
                            fraction_adaptive_singles + max_singles_proportion_error)
 
@@ -140,10 +140,10 @@ class TuningParamsTest(parameterized.TestCase):
         tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
         actual_stats_dict = tuning.get_landscape_stats(tuned_landscape)
 
-        num_singles = len(wt_seq) * untuned_landscape.vocab_size
+        num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
         # Because we are adjusting quantiles, we can only get to within
         # 1 / num_singles of the desired proportion
-        max_singles_proportion_error = 1 / num_singles
+        max_singles_proportion_error = 1.0 / num_singles
         self.assertBetween(actual_stats_dict['fraction_adaptive_singles'],
                            desired_stats_dict['fraction_adaptive_singles'] - max_singles_proportion_error,
                            desired_stats_dict['fraction_adaptive_singles'] + max_singles_proportion_error)
