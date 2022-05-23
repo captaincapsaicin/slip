@@ -101,12 +101,61 @@ class TuningParamsTest(parameterized.TestCase):
         actual_fraction_adaptive_singles = tuning.get_fraction_adaptive_singles(tuned_landscape)
 
         num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
-        # Because we are adjusting quantiles, we can only get to within
-        # 1 / num_singles of the desired proportion
-        max_singles_proportion_error = 1.0 / num_singles
+        # Because we adjust single mutant fitness, we can only get to within
+        # 1 / num_singles of the desired proportion.
+        allowed_error = 1.0 / num_singles
         self.assertBetween(actual_fraction_adaptive_singles,
-                           fraction_adaptive_singles - max_singles_proportion_error,
-                           fraction_adaptive_singles + max_singles_proportion_error)
+                           fraction_adaptive_singles - allowed_error,
+                           fraction_adaptive_singles + allowed_error)
+
+    @parameterized.named_parameters(
+        dict(
+            testcase_name='reciprocal_10',
+            seed=2,
+            wt_seq=[0, 0, 0, 0],
+            desired_fraction=0.1,
+        ),
+        dict(
+            testcase_name='reciprocal_90',
+            seed=2,
+            wt_seq=[0, 0, 0, 0],
+            desired_fraction=0.9,
+        ),
+        dict(
+            testcase_name='reciprocal_50',
+            seed=2,
+            wt_seq=[0, 0, 0, 0],
+            desired_fraction=0.5,
+        ),
+        dict(
+            testcase_name='reciprocal_66',
+            seed=3,
+            wt_seq=[1, 1, 1, 1],
+            desired_fraction=0.66,
+        ),
+    )
+    def test_tune_epistasis(self, wt_seq, seed, desired_fraction):
+        untuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed)
+        untuned_fraction_adaptive_singles = tuning.get_fraction_adaptive_singles(untuned_landscape)
+
+        tuning_kwargs = tuning.get_tuning_kwargs(
+            untuned_landscape,
+            fraction_reciprocal_adaptive_epistasis=desired_fraction)
+
+        tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+        _, actual_fraction = tuning.get_epistasis_stats(tuned_landscape)
+
+        num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
+        num_adaptive_singles = num_singles * untuned_fraction_adaptive_singles
+
+        # This error bound is only exact if all adaptive singles affect unique positions,
+        # otherwise it is more restrictive than necessary.
+        num_adaptive_doubles = comb(num_adaptive_singles, 2)
+        allowed_error = 1.0 / num_adaptive_doubles
+
+        self.assertBetween(actual_fraction,
+                           desired_fraction - allowed_error,
+                           desired_fraction + allowed_error)
 
 
     @parameterized.named_parameters(

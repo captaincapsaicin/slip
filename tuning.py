@@ -38,8 +38,13 @@ def get_fraction_adaptive_singles(landscape: potts_model.PottsModel) -> float:
 
 
 def get_doubles_df(landscape, threshold, adaptive) -> pd.DataFrame:
-    """Returns a dataframe with ['fitness', 'a_fitness', 'b_fitness', 'residual'] keys
-    That includes all combinations of singles that are above/below a given fitness threshold
+    """Returns a DataFrame of all combinations of singles that are above/below a given fitness threshold.
+
+    For each double mutant, the DataFrame includes the keys:
+        'fitness': the fitness of the double.
+        'a_fitness': the fitness of the first constituent single.
+        'b_fitness': the fitness of the second constituent single.
+        'residual': the epistatic term ].
     """
     wt_seq = landscape.wildtype_sequence
     all_singles = sampling.get_all_single_mutants(wt_seq, landscape.vocab_size)
@@ -175,11 +180,13 @@ def get_landscape_stats(landscape: potts_model.PottsModel) -> dict:
 
 
 def get_normalizing_field_scale(landscape: potts_model.PottsModel) -> float:
+    """Returns the field scale tuning parameter to normalize the spread of single mutant fitness."""
     std_singles = get_single_std(landscape)
     return 1.0 / std_singles
 
 
 def get_single_mut_offset(landscape: potts_model.PottsModel, fraction_adaptive_singles: float) -> float:
+    """Returns the single mutant offset tuning parameter to achieve `fraction_adaptive_singles`."""
     all_singles = sampling.get_all_single_mutants(landscape.wildtype_sequence, landscape.vocab_size)
     single_fitness = landscape.evaluate(all_singles)
     single_mut_offset = -1 * np.quantile(single_fitness, q=1 - fraction_adaptive_singles)
@@ -188,10 +195,12 @@ def get_single_mut_offset(landscape: potts_model.PottsModel, fraction_adaptive_s
 
 
 def get_epi_offset(landscape: potts_model.PottsModel, fraction_reciprocal_adaptive_epistasis: float) -> float:
+    """Returns the epistatic offset tuning parameter to achieve `fraction_reciprocal_adaptive_epistasis`."""
     doubles_df = get_doubles_df(landscape, threshold=0.0, adaptive=True)
     # we want fraction to remain negative
-    epi_offset = -1 * np.quantile(doubles_df.fitness, q=fraction_reciprocal_adaptive_epistasis)
-    return epi_offset
+    epi_offset = -1 * np.quantile(doubles_df.residual, q=fraction_reciprocal_adaptive_epistasis)
+    # np.quantile returns float64 by default
+    return epi_offset.astype(np.float32)
 
 
 def get_coupling_scale(landscape: potts_model.PottsModel,
@@ -199,11 +208,15 @@ def get_coupling_scale(landscape: potts_model.PottsModel,
                        field_scale: float = 1.0,
                        single_mut_offset: float = 0.0,
                        epi_offset: float = 0.0) -> float:
-    """Returns the scaling factor that would result in `epistatic_horizon`
+    """Returns the coupling scale tuning parameter to achieve `epistatic_horizon`.
 
-    Requires solving the equation for coupling_scale:
+    The epistatic horizon depends on other landscape statistics.
+    Let $s_+$ be the average adaptive single mutant effect.
+    Let $e_{+,+}$ be the average epistatic effect for a pair of adaptive singles.
+    Then, given K, we solve the following equation to determine the coupling-scale:
 
-    K * field_scale (s_+ + field_scale) + (K choose 2) * coupling_scale (e_{+, +} + epi_offset) = 0"""
+    $$K * field_scale (s_+ + field-scale) + (K choose 2) * coupling-scale (e_{+,+} + epi_offset) = 0$$
+    """
     adaptive_threshold = 0.0
     is_adaptive = True
 
@@ -220,7 +233,7 @@ def get_coupling_scale(landscape: potts_model.PottsModel,
     return coupling_scale
 
 
-# TODO(nthomas) fraction_reciprocal_deleterious_epistasis:
+# TODO(nthomas) implement fraction_reciprocal_deleterious_epistasis:
 #   The fraction of deleterious(-, -) doubles that exhibit positive epistasis.
 def get_tuning_kwargs(landscape: potts_model.PottsModel,
                       fraction_adaptive_singles: Optional[float] = None,
