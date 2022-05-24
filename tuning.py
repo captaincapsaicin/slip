@@ -37,7 +37,7 @@ def get_fraction_adaptive_singles(landscape: potts_model.PottsModel) -> float:
     return fraction_adaptive
 
 
-def get_doubles_df(landscape, threshold, adaptive) -> pd.DataFrame:
+def get_doubles_df(landscape: potts_model.PottsModel, threshold: float, adaptive: bool) -> pd.DataFrame:
     """Returns a DataFrame of all combinations of singles that are above/below a given fitness threshold.
 
     For each double mutant, the DataFrame includes the keys:
@@ -133,7 +133,7 @@ def get_mean_single_effect(landscape: potts_model.PottsModel, threshold: float =
 
 
 def get_epistatic_horizon(landscape: potts_model.PottsModel) -> float:
-    """Returns the epistatic horizon for the given landscape.
+    r"""Returns the epistatic horizon for the given landscape.
 
     The "epistatic horizon" is defined as the distance K from the wildtype at which, on average,
     epistatic contributions outweigh linear contributions from adaptive singles. This is the average
@@ -194,9 +194,19 @@ def get_single_mut_offset(landscape: potts_model.PottsModel, fraction_adaptive_s
     return single_mut_offset.astype(np.float32)
 
 
-def get_epi_offset(landscape: potts_model.PottsModel, fraction_reciprocal_adaptive_epistasis: float) -> float:
-    """Returns the epistatic offset tuning parameter to achieve `fraction_reciprocal_adaptive_epistasis`."""
-    doubles_df = get_doubles_df(landscape, threshold=0.0, adaptive=True)
+def get_epi_offset(landscape: potts_model.PottsModel,
+                   fraction_reciprocal_adaptive_epistasis: float,
+                   single_mut_offset: float = 0.0) -> float:
+    """Returns the epistatic offset tuning parameter to achieve `fraction_reciprocal_adaptive_epistasis`.
+
+    # TODO(nthomas) add note about pretuning the landscape
+    """
+    # single mutant offset changes the set of adaptive singles
+    pretuned_landscape = potts_model.PottsModel(landscape.weight_matrix,
+                                                landscape.field_vec,
+                                                landscape.wildtype_sequence,
+                                                single_mut_offset=single_mut_offset)
+    doubles_df = get_doubles_df(pretuned_landscape, threshold=0.0, adaptive=True)
     # we want fraction to remain negative
     epi_offset = -1 * np.quantile(doubles_df.residual, q=fraction_reciprocal_adaptive_epistasis)
     # np.quantile returns float64 by default
@@ -220,14 +230,19 @@ def get_coupling_scale(landscape: potts_model.PottsModel,
     adaptive_threshold = 0.0
     is_adaptive = True
 
+    pretuned_landscape = potts_model.PottsModel(landscape.weight_matrix,
+                                                landscape.field_vec,
+                                                wt_seq=landscape.wildtype_sequence,
+                                                field_scale=field_scale,
+                                                single_mut_offset=single_mut_offset,
+                                                epi_offset=epi_offset)
     mean_adaptive_single_effect = get_mean_single_effect(
-        landscape, threshold=adaptive_threshold, adaptive=is_adaptive) + single_mut_offset
-    untuned_epistasis_effect = get_doubles_df(
-        landscape, threshold=adaptive_threshold, adaptive=is_adaptive).residual.mean()
-    mean_epistasis_effect = untuned_epistasis_effect + epi_offset
+        pretuned_landscape, threshold=adaptive_threshold, adaptive=is_adaptive)
+    mean_epistasis_effect = get_doubles_df(
+        pretuned_landscape, threshold=adaptive_threshold, adaptive=is_adaptive).residual.mean()
 
     K = epistatic_horizon
-    numerator = - K * field_scale * mean_adaptive_single_effect
+    numerator = - K * mean_adaptive_single_effect
     denominator = comb(K, 2) * mean_epistasis_effect
     coupling_scale = numerator / denominator
     return coupling_scale
@@ -251,7 +266,6 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
       epistatic_horizon: average distance at which epi effects out weigh singles
       normalize_to_singles: A boolean, when True, ensures that the standard deviation of single mutant effects
         is 1.0.
-
 
     Returns:
       A dict of tuning parameters
@@ -278,7 +292,9 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
     if fraction_reciprocal_adaptive_epistasis is not None:
         if not (fraction_reciprocal_adaptive_epistasis >= 0 and fraction_reciprocal_adaptive_epistasis <= 1.0):
             raise ValueError(f'Invalid fraction: {fraction_reciprocal_adaptive_epistasis} must be between 0 and 1.')
-        epi_offset = get_epi_offset(landscape, fraction_reciprocal_adaptive_epistasis)
+        epi_offset = get_epi_offset(landscape,
+                                    fraction_reciprocal_adaptive_epistasis,
+                                    single_mut_offset=single_mut_offset)
 
     if epistatic_horizon:
         if not (epistatic_horizon >= 0):

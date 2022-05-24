@@ -108,6 +108,16 @@ class TuningParamsTest(parameterized.TestCase):
                            fraction_adaptive_singles - allowed_error,
                            fraction_adaptive_singles + allowed_error)
 
+    def test_no_adaptives_raises(self):
+        wt_seq = [0, 0, 0, 0]
+        weight_matrix = np.zeros(shape=(4, 4, 20, 20), dtype=np.float32)
+        import utils
+        field_vec = np.zeros(shape=(4, 20), dtype=np.float32) - utils.onehot(wt_seq, num_classes=20)
+        dead_landscape = potts_model.PottsModel(weight_matrix, field_vec, wt_seq=wt_seq)
+
+        with self.assertRaisesRegex(ValueError, 'Invalid Landscape'):
+            tuning.get_doubles_df(dead_landscape, threshold=0, adaptive=True)
+
     @parameterized.named_parameters(
         dict(
             testcase_name='reciprocal_10',
@@ -157,6 +167,46 @@ class TuningParamsTest(parameterized.TestCase):
                            desired_fraction - allowed_error,
                            desired_fraction + allowed_error)
 
+    @parameterized.named_parameters(
+        dict(
+            testcase_name='horizon_2',
+            seed=0,
+            wt_seq=[0, 0, 0, 0],
+            desired_horizon=2,
+        ),
+        dict(
+            testcase_name='horizon_5',
+            seed=1,
+            wt_seq=[0, 0, 0, 0],
+            desired_horizon=5,
+        ),
+        dict(
+            testcase_name='horizon_10',
+            seed=2,
+            wt_seq=[0, 0, 0, 0],
+            desired_horizon=10,
+        ),
+        dict(
+            testcase_name='horizon_100',
+            seed=3,
+            wt_seq=[1, 1, 1, 1],
+            desired_horizon=100,
+        ),
+    )
+    def test_tune_epistatic_horizon(self, wt_seq, seed, desired_horizon):
+        untuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed)
+
+        tuning_kwargs = tuning.get_tuning_kwargs(
+            untuned_landscape,
+            epistatic_horizon=desired_horizon)
+
+        tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+
+        actual_horizon = tuning.get_epistatic_horizon(tuned_landscape)
+        # TODO(nthomas) make this exact.
+        self.assertAlmostEqual(desired_horizon, actual_horizon, places=3)
+
+# TODO(nthomas) add test for singles and epi offset to act independently...
 
     @parameterized.named_parameters(
         dict(
@@ -198,19 +248,18 @@ class TuningParamsTest(parameterized.TestCase):
                            desired_stats_dict['fraction_adaptive_singles'] + max_singles_proportion_error)
 
         untuned_fraction_adaptive_singles = tuning.get_landscape_stats(untuned_landscape)['fraction_adaptive_singles']
-
-        # TODO(nthomas) figure out why this, recomputing num_adaptive_singles, is not an integer, or close.
         num_adaptive_singles = num_singles * untuned_fraction_adaptive_singles
 
         num_adaptive_doubles = comb(num_adaptive_singles, 2)
-        max_epistatic_proportion_error = 1 / num_adaptive_doubles
-        # TODO(nthomas) add an error message when desired tuning is not possible
-        # TODO(nthomas) split these tests up into testing each tuning parameter separately
+        # TODO(nthomas) explain that we assume double collisions for safety
+        fudge_factor = 2 * (1.0 / num_adaptive_doubles)
         self.assertBetween(actual_stats_dict['fraction_reciprocal_adaptive_epistasis'],
-                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] - max_epistatic_proportion_error,
-                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] + max_epistatic_proportion_error)
+                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] - fudge_factor,
+                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] + fudge_factor)
 
-        self.assertEqual(desired_stats_dict['epistatic_horizon'], actual_stats_dict['epistatic_horizon'])
+        self.assertAlmostEqual(desired_stats_dict['epistatic_horizon'],
+                               actual_stats_dict['epistatic_horizon'],
+                               places=3)
 
 
 if __name__ == '__main__':
