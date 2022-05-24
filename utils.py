@@ -40,7 +40,7 @@ def onehot(labels, num_classes):
   elif isinstance(labels, list):
     labels = np.asarray(labels)  # ndarray view
   x = (labels[Ellipsis, None] == np.arange(num_classes)[None])
-  return x.astype(np.float32)
+  return x
 
 
 def recombine_seqs(
