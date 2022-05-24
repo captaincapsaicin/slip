@@ -16,7 +16,7 @@
 """Methods for running optimization trajectories."""
 
 import random as python_random
-from typing import Callable, Sequence, Tuple
+from typing import Callable, Sequence, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -24,16 +24,18 @@ from scipy import stats
 from sklearn import metrics as skm
 import tensorflow as tf
 
+import epistasis_selection
 import metrics
 import models
 import potts_model
 import sampling
 import solver
+import tuning
 import utils
 
 
-def get_fitness_df(sequences: np.ndarray,
-                   fitness_fn: Callable[[np.ndarray], np.ndarray],
+def get_fitness_df(sequences: Sequence[Sequence[int]],
+                   fitness_fn: Callable[[Sequence[Sequence[int]]], np.ndarray],
                    ref_seq: Sequence[int]):
     """Get a DataFrame with the fitness of the requested sequences.
 
@@ -172,7 +174,6 @@ def get_samples_around_wildtype(
         num_samples: int,
         min_num_mutations: int,
         max_num_mutations: int,
-        vocab_size: int,
         include_singles: bool,
         random_state: np.random.RandomState):
     """Return a DataFrame with a sample centered around the `landscape` wildtype.
@@ -185,7 +186,6 @@ def get_samples_around_wildtype(
       num_samples: The number of random samples to draw from the landscape.
       min_num_mutations: The minimum number of mutations to randomly sample.
       max_num_mutations: The maximum number of mutations to randomly sample.
-      vocab_size: The number of amino acids in the vocabulary.
       include_singles: Whether to include all single mutants or not.
       random_state: np.random.RandomState which dictates the sampling.
 
@@ -195,13 +195,13 @@ def get_samples_around_wildtype(
     sample = sampling.sample_within_hamming_radius(
         landscape.wildtype_sequence,
         num_samples,
-        vocab_size,
+        landscape.vocab_size,
         min_mutations=min_num_mutations,
         max_mutations=max_num_mutations,
         random_state=random_state)
     if include_singles:
         all_singles = sampling.get_all_single_mutants(
-            landscape.wildtype_sequence, vocab_size=vocab_size)
+            landscape.wildtype_sequence, vocab_size=landscape.vocab_size)
         sample = np.vstack([sample, all_singles])
     random_state.shuffle(sample)
 
@@ -214,37 +214,39 @@ def get_samples_around_wildtype(
 
 
 def run_regression_experiment(
-        mogwai_filepath,
-        potts_coupling_scale,
-        potts_field_scale,
-        potts_single_mut_offset,
-        potts_epi_offset,
-        vocab_size,
-        training_set_min_num_mutations,
-        training_set_max_num_mutations,
-        training_set_num_samples,
-        training_set_include_singles,
-        training_set_random_seed,
-        model_name,
-        model_random_seed,
-        metrics_random_split_fraction,
-        metrics_random_split_random_seed,
-        metrics_distance_split_radii):
+        mogwai_filepath: str,
+        fraction_adaptive_singles: float,
+        fraction_reciprocal_adaptive_epistasis: float,
+        epistatic_horizon: float,
+        normalize_to_singles: bool,
+        training_set_min_num_mutations: int,
+        training_set_max_num_mutations: int,
+        training_set_num_samples: int,
+        training_set_include_singles: bool,
+        training_set_random_seed: int,
+        model_name: str,
+        model_random_seed: int,
+        metrics_random_split_fraction: float,
+        metrics_random_split_random_seed: int,
+        metrics_distance_split_radii: Sequence[int]):
     """Returns metrics for a regression experiment."""
     # Load Potts model landscape
+    untuned_landscape = potts_model.load_from_mogwai_npz(mogwai_filepath)
+    tuning_kwargs = tuning.get_tuning_kwargs(untuned_landscape,
+                                             fraction_adaptive_singles,
+                                             fraction_reciprocal_adaptive_epistasis,
+                                             epistatic_horizon,
+                                             normalize_to_singles=normalize_to_singles)
     landscape = potts_model.load_from_mogwai_npz(
         mogwai_filepath,
-        coupling_scale=potts_coupling_scale,
-        field_scale=potts_field_scale,
-        single_mut_offset=potts_single_mut_offset,
-        epi_offset=potts_epi_offset)
+        **tuning_kwargs)
 
     # Sample a training dataset.
     training_random_state = np.random.RandomState(training_set_random_seed)
-    sample_df = get_samples_around_wildtype(landscape, training_set_num_samples,
+    sample_df = get_samples_around_wildtype(landscape,
+                                            training_set_num_samples,
                                             training_set_min_num_mutations,
                                             training_set_max_num_mutations,
-                                            vocab_size,
                                             training_set_include_singles,
                                             training_random_state)
 
@@ -256,66 +258,67 @@ def run_regression_experiment(
     # Compute regression metrics.
     sequence_length = len(landscape.wildtype_sequence)
     model, flatten_inputs = models.get_model(model_name, sequence_length,
-                                             vocab_size)
+                                             landscape.vocab_size)
     metrics_random_state = np.random.RandomState(metrics_random_split_random_seed)
 
     run_metrics = {}
 
     random_split_metrics = compute_regression_metrics_random_split(
-        model, sample_df, metrics_random_split_fraction, vocab_size,
+        model, sample_df, metrics_random_split_fraction, landscape.vocab_size,
         flatten_inputs, metrics_random_state)
     run_metrics['random_split'] = random_split_metrics
 
     for distance_threshold in metrics_distance_split_radii:
         distance_metrics = compute_regression_metrics_distance_split(
             model, sample_df, landscape.wildtype_sequence, distance_threshold,
-            vocab_size, flatten_inputs)
+            landscape.vocab_size, flatten_inputs)
         run_metrics['distance_split_{}'.format(
             distance_threshold)] = distance_metrics
     return run_metrics
 
 
 def run_design_experiment(
-    mogwai_filepath,
-    potts_coupling_scale,
-    potts_field_scale,
-    potts_single_mut_offset,
-    potts_epi_offset,
-    vocab_size,
-    training_set_min_num_mutations,
-    training_set_max_num_mutations,
-    training_set_num_samples,
-    training_set_include_singles,
-    training_set_random_seed,
-    model_name,
-    model_random_seed,
-    mbo_num_designs,
-    mbo_random_seed,
-    inner_loop_solver_top_k,
-    inner_loop_solver_min_mutations,
-    inner_loop_solver_max_mutations,
-    inner_loop_num_rounds,
-    inner_loop_num_samples,
-    design_metrics_hit_threshold,
-    design_metrics_cluster_hamming_distance,
-    design_metrics_fitness_percentiles,
-    output_filepath=None,
+    mogwai_filepath: str,
+    fraction_adaptive_singles: float,
+    fraction_reciprocal_adaptive_epistasis: float,
+    epistatic_horizon: float,
+    normalize_to_singles: bool,
+    training_set_min_num_mutations: int,
+    training_set_max_num_mutations: int,
+    training_set_num_samples: int,
+    training_set_include_singles: bool,
+    training_set_random_seed: int,
+    model_name: str,
+    model_random_seed: int,
+    mbo_num_designs: int,
+    mbo_random_seed: int,
+    inner_loop_solver_top_k: int,
+    inner_loop_solver_min_mutations: int,
+    inner_loop_solver_max_mutations: int,
+    inner_loop_num_rounds: int,
+    inner_loop_num_samples: int,
+    design_metrics_hit_threshold: float,
+    design_metrics_cluster_hamming_distance: int,
+    design_metrics_fitness_percentiles: Sequence[float],
+    output_filepath: Optional[str] = None,
 ):
     """Returns a tuple of (metrics, proposal DataFrame) for a design experiment."""
     # Load Potts model landscape
+    untuned_landscape = potts_model.load_from_mogwai_npz(mogwai_filepath)
+    tuning_kwargs = tuning.get_tuning_kwargs(untuned_landscape,
+                                             fraction_adaptive_singles,
+                                             fraction_reciprocal_adaptive_epistasis,
+                                             epistatic_horizon,
+                                             normalize_to_singles)
     landscape = potts_model.load_from_mogwai_npz(
         mogwai_filepath,
-        coupling_scale=potts_coupling_scale,
-        field_scale=potts_field_scale,
-        single_mut_offset=potts_single_mut_offset,
-        epi_offset=potts_epi_offset)
+        **tuning_kwargs)
 
     # Sample a training dataset.
     training_random_state = np.random.RandomState(training_set_random_seed)
     sample_df = get_samples_around_wildtype(landscape, training_set_num_samples,
                                             training_set_min_num_mutations,
                                             training_set_max_num_mutations,
-                                            vocab_size,
                                             training_set_include_singles,
                                             training_random_state)
 
@@ -327,17 +330,17 @@ def run_design_experiment(
     # MBO
     sequence_length = len(landscape.wildtype_sequence)
     model, flatten_inputs = models.get_model(model_name, sequence_length,
-                                             vocab_size)
+                                             landscape.vocab_size)
     inner_loop_solver = solver.RandomMutationSolver(
         inner_loop_solver_min_mutations,
         inner_loop_solver_max_mutations,
         top_k=inner_loop_solver_top_k,
-        vocab_size=vocab_size)
+        vocab_size=landscape.vocab_size)
 
     mbo_random_state = np.random.RandomState(mbo_random_seed)
     mbo_solver = solver.ModelBasedSolver(
         model,
-        vocab_size=vocab_size,
+        vocab_size=landscape.vocab_size,
         flatten_inputs=flatten_inputs,
         inner_loop_num_rounds=inner_loop_num_rounds,
         inner_loop_num_samples=inner_loop_num_samples,

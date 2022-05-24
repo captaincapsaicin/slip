@@ -157,6 +157,8 @@ def get_epistatic_horizon(landscape: potts_model.PottsModel) -> float:
     """
     mean_adaptive_epistasis, _ = get_epistasis_stats(landscape, threshold=0.0, adaptive=True)
     mean_adaptive_single = get_mean_single_effect(landscape, threshold=0, adaptive=True)
+    if mean_adaptive_epistasis == 0:
+        return np.inf
     epistatic_horizon = (mean_adaptive_epistasis - 2 * mean_adaptive_single) / mean_adaptive_epistasis
     return epistatic_horizon
 
@@ -281,7 +283,7 @@ def get_tuning_kwargs(landscape: potts_model.PottsModel,
     pprint(get_landscape_stats(landscape))
 
     # compute tuning parameters
-    if normalize_to_singles is not None:
+    if normalize_to_singles:
         field_scale = get_normalizing_field_scale(landscape)
 
     if fraction_adaptive_singles is not None:
