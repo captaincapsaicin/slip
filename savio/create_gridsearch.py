@@ -8,11 +8,9 @@ import json
 LOG_DIRECTORY = '/global/scratch/projects/fc_songlab/nthomas/slip/log/'
 
 defaults = {
-
     'fraction_adaptive_singles': None,
     'fraction_reciprocal_adaptive_epistasis': None,
     'normalize_to_singles': True,
-    'training_set_min_num_mutations': 0,
     'model_random_seed': 0,
     'test_set_n': 500,
     'test_set_random_seed': 0,
@@ -20,7 +18,8 @@ defaults = {
     'test_set_singles_top_k': 500,
     'test_set_distances': [4, 6, 8, 10],
     'test_set_epistatic_top_k': 2000,
-    'training_set_max_num_mutations': 15,
+    'training_set_min_num_mutations': 0,
+    'training_set_max_num_mutations': 3,
     'training_set_num_samples': 5000,
 
 }
