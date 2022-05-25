@@ -1,8 +1,20 @@
+# Go to savio login node
+```
+ssh savio
+# then start a tmux session
+```
+
+
 # Load the correct environment
 ```
 module unload python
 module load ml/tensorflow/2.5.0-py37
 source activate slip
+```
+# Restart ssh agent to get access to deploy key
+```
+eval `ssh-agent`
+ssh-add ~/.ssh/id_ed25519  # enter password
 ```
 
 # Create gridsearch parameters
@@ -21,7 +33,8 @@ while read i ; do sbatch $DIR/run_experiment.sh "$i"; done < $DIR/regression_par
 Creates a directory for the logfiles, and prints the sbatch command for running the gridsearch
 
 # Submit jobs per parameter set
-Iterate over the lines in that file to create one job per task
+Copy the sbatch command from `create_gridsearch`. This command iterates over the
+lines in the `regression_params.json` file to create one job per task.
 
 ```
 while read i ; do sbatch $DIR/run_experiment.sh "$i"; done < $DIR/regression_params.json
@@ -30,4 +43,14 @@ while read i ; do sbatch $DIR/run_experiment.sh "$i"; done < $DIR/regression_par
 # Look up the results somehow.
 ```
 $DIR/*.out
+```
+
+# Log in to a jupyter notebook on savio
+
+Navigate to:
+`https://ood.brc.berkeley.edu/`.  Start an interactive jupyter session.
+
+Check out
+```
+~/git/slip/savio/notebooks
 ```
