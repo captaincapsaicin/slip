@@ -9,8 +9,8 @@ import experiment
 
 def main(kwargs_json, output_dir, job_id):
     kwargs = json.loads(kwargs_json)
-    metrics = experiment.run_regression_experiment(**kwargs)
     print(kwargs)
+    metrics = experiment.run_regression_experiment(**kwargs)
     print(metrics)
 
     # update output with input kwargs
@@ -29,4 +29,3 @@ if __name__ == '__main__':
     parser.add_argument('job_id', type=str, help='the job id')
     args = parser.parse_args()
     main(args.kwargs_json, args.output_dir, args.job_id)
-
