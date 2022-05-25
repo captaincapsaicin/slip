@@ -8,7 +8,7 @@ import json
 LOG_DIRECTORY = '/global/scratch/projects/fc_songlab/nthomas/slip/log/'
 
 defaults = {
-    'mogwai_filepath': "/global/home/users/nthomas/git/slip/data/3er7_1_A_model_state_dict.npz",
+
     'fraction_adaptive_singles': None,
     'fraction_reciprocal_adaptive_epistasis': None,
     'normalize_to_singles': True,
@@ -30,7 +30,12 @@ options = {
     'training_set_random_seed': list(range(20)),
     'epistatic_horizon': [2.0, 8.0, 16.0, 32.0],
     'training_set_include_singles': [True, False],
-    'model_name': ['linear', 'cnn']
+    'model_name': ['linear', 'cnn'],
+    'mogwai_filepath': ["/global/home/users/nthomas/git/slip/data/3er7_1_A_model_state_dict.npz",
+                        "/global/home/users/nthomas/git/slip/data/3bfo_1_A_model_state_dict.npz",
+                        "/global/home/users/nthomas/git/slip/data/3gfb_1_A_model_state_dict.npz",
+                        "/global/home/users/nthomas/git/slip/data/3my2_1_A_model_state_dict.npz",
+                        "/global/home/users/nthomas/git/slip/data/5hu4_1_A_model_state_dict.npz"]
 }
 
 SBATCH_TEMPLATE = 'run_experiment_template.txt'
