@@ -250,6 +250,7 @@ def run_regression_experiment(
         test_set_epistatic_top_k: int):
     """Returns metrics for a regression experiment."""
     # Load Potts model landscape
+    print('Loading tuned landscape...')
     untuned_landscape = potts_model.load_from_mogwai_npz(mogwai_filepath)
     tuning_kwargs = tuning.get_tuning_kwargs(untuned_landscape,
                                              fraction_adaptive_singles,
@@ -261,6 +262,7 @@ def run_regression_experiment(
         **tuning_kwargs)
 
     # Sample a training dataset.
+    print('Sampling training set...')
     training_random_state = np.random.RandomState(training_set_random_seed)
     train_df = get_samples_around_wildtype(landscape,
                                            training_set_num_samples,
@@ -275,6 +277,7 @@ def run_regression_experiment(
     tf.random.set_seed(model_random_seed)
 
     # Train model.
+    print('Training model...')
     sequence_length = len(landscape.wildtype_sequence)
     model, flatten_inputs = models.get_model(model_name,
                                              sequence_length,
@@ -284,6 +287,7 @@ def run_regression_experiment(
     run_metrics = {}
 
     # Compute regression metrics.
+    print('Computing regression metrics on curated tests sets...')
     test_random_state = np.random.RandomState(test_set_random_seed)
     import functools
     compute_regression_metrics_for_model = functools.partial(compute_regression_metrics,
@@ -296,6 +300,7 @@ def run_regression_experiment(
     run_metrics['train'] = train_metrics
     for distance in test_set_distances:
         # epistatic test set
+        print('Constructing epistatic test set...')
         epistatic_seqs = epistasis_selection.get_epistatic_seqs_for_landscape(
             landscape=landscape,
             distance=distance,
@@ -309,6 +314,7 @@ def run_regression_experiment(
         run_metrics[f'epistatic_distance_{distance}'] = epistatic_metrics
 
         # adaptive test set
+        print('Constructing adaptive test set...')
         adaptive_seqs = epistasis_selection.get_adaptive_seqs_for_landscape(
             landscape=landscape,
             distance=distance,

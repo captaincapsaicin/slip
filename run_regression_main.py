@@ -1,3 +1,4 @@
+"""Entry point for running regression experiments."""
 import argparse
 from pathlib import Path
 
@@ -7,7 +8,15 @@ import pandas as pd
 
 import experiment
 
+
 def main(kwargs_json, output_dir, job_id):
+    """Main function for sbatch run.
+
+    Args:
+      kwargs_json: a json string with regression experiment configuration parameters
+      output_dir: string indicating directory to put metrics
+      job_id: a unique identifier for the job
+    """
     kwargs = json.loads(kwargs_json)
     print(kwargs)
     metrics = experiment.run_regression_experiment(**kwargs)
@@ -21,6 +30,7 @@ def main(kwargs_json, output_dir, job_id):
     # write metrics
     with open(Path(output_dir) / Path(job_id + '_metrics.json'), 'w') as f:
         pd.DataFrame(metrics).T.to_json(f)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Take in a line of json')
