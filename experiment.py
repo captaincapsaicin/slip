@@ -19,7 +19,6 @@ import random as python_random
 from typing import Callable, Sequence, Tuple, Optional
 
 import numpy as np
-from numpy.typing import ArrayLike
 import pandas as pd
 from scipy import stats
 from sklearn import metrics as skm
@@ -35,9 +34,9 @@ import tuning
 import utils
 
 
-def get_fitness_df(sequences: ArrayLike,
-                   fitness_fn: Callable[[ArrayLike], np.ndarray],
-                   ref_seq: ArrayLike):
+def get_fitness_df(sequences,
+                   fitness_fn,
+                   ref_seq):
     """Get a DataFrame with the fitness of the requested sequences.
 
     Args:
