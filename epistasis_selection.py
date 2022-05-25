@@ -186,7 +186,7 @@ def get_adaptive_seqs_for_landscape(landscape: potts_model.PottsModel,
   if max_reuse is not None:
     assert max_reuse > 0
     mutation_set = filter_mutation_set_by_position(mutation_set, limit=max_reuse)
-    print(f'{len(mutation_set)} after filtering {top_k}')
+    print(f'{len(mutation_set)} after filtering {top_k}' singles)
 
   num_rounds = distance
   all_combined = combine_k_rounds(num_rounds, mutation_set)
