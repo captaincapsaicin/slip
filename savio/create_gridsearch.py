@@ -9,25 +9,31 @@ LOG_DIRECTORY = '/global/scratch/projects/fc_songlab/nthomas/slip/log/'
 
 defaults = {
     'mogwai_filepath': "/global/home/users/nthomas/git/slip/data/3er7_1_A_model_state_dict.npz",
-    'potts_field_scale': 1,
-    'potts_single_mut_offset': 0,
-    'potts_epi_offset': 0,
-    'vocab_size': 20,
+    'fraction_adaptive_singles': None,
+    'fraction_reciprocal_adaptive_epistasis': None,
+    'normalize_to_singles': True,
     'training_set_min_num_mutations': 0,
     'model_random_seed': 0,
-    'metrics_random_split_fraction': 0.8,
-    'metrics_random_split_random_seed': 0,
-    'metrics_distance_split_radii': [3, 4, 5],
+    'test_set_n': 500,
+    'test_set_random_seed': 0,
+    'test_set_max_reuse': 20,
+    'test_set_singles_top_k': 500,
+    'test_set_distances': [4, 6, 8, 10],
+    'test_set_epistatic_top_k': 2000,
     'training_set_max_num_mutations': 15,
     'training_set_num_samples': 5000,
+
 }
+
 
 options = {
     'training_set_random_seed': list(range(20)),
-    'potts_coupling_scale': [1.0, 3.3, 6.0, 29.5],  # k = inf, 10, 6, 2
+    'epistatic_horizon': [2.0, 8.0, 16.0, 32.0],
     'training_set_include_singles': [True, False],
     'model_name': ['linear', 'cnn']
 }
+
+SBATCH_TEMPLATE = 'run_experiment_template.txt'
 
 
 def product_dict(**kwargs):
@@ -56,7 +62,6 @@ def get_batch_id():
     return datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
 
 
-SBATCH_TEMPLATE = 'run_experiment_template.txt'
 def write_sbatch_script(batch_id, template_filepath, out_filepath):
     """Reads in a `template` and fills in the batch_id where necessary."""
     with open(template_filepath, 'r') as f:
@@ -73,8 +78,8 @@ def write_readable_options_and_defaults(options, defaults, directory):
         json.dump(options, f)
 
 
-command_string = "while read i ; do sbatch {job_directory}/run_experiment.sh \"$i\"; done < {job_directory}/regression_params.json"
 def get_command_string(job_directory):
+    command_string = "while read i ; do sbatch {job_directory}/run_experiment.sh \"$i\"; done < {job_directory}/regression_params.json"
     return command_string.format(job_directory=job_directory)
 
 
