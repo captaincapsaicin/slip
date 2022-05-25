@@ -17,6 +17,7 @@
 
 import collections
 import itertools
+import functools
 
 from typing import Iterable, Optional, Sequence, Tuple, List
 
@@ -39,7 +40,7 @@ def onehot(labels, num_classes):
   elif isinstance(labels, list):
     labels = np.asarray(labels)  # ndarray view
   x = (labels[Ellipsis, None] == np.arange(num_classes)[None])
-  return x.astype(np.float32)
+  return x
 
 
 def recombine_seqs(
@@ -147,8 +148,29 @@ def merge_mutation_sets(
   return to_return
 
 
-def get_mutation_positions(sequence,
-                           parent):
+def merge_mutation_set_into_multiple(mutation_sets: Sequence[Tuple[Tuple[int, int], ...]], mutation_set: Tuple[Tuple[int, int], ...]) -> List[Tuple[Tuple[int, int], ...]]:
+  """Returns the merge of `mutation_set` into multiple `mutation_sets`.
+
+  Returns:
+    A list of mutation set tuples.
+  """
+  if len(mutation_sets) == 0:
+    return [mutation_set,]
+
+  all_merges = []
+  for mutation_set_a in mutation_sets:
+    all_merges.extend(merge_mutation_sets(mutation_set_a, mutation_set))
+  return all_merges
+
+def merge_multiple_mutation_sets(mutation_sets: Sequence[Tuple[Tuple[int, int], ...]]) -> List[Tuple[Tuple[int, int], ...]]:
+  """Returns the merge of all `mutation_sets`.
+
+  Returns:
+    A list of mutation set tuples.
+  """
+  return functools.reduce(merge_mutation_set_into_multiple, mutation_sets, [])
+
+def get_mutation_positions(sequence, parent):
   """Returns positions where sequence and parent disagree.
 
   Args:
@@ -166,8 +188,7 @@ def get_mutation_positions(sequence,
   return np.where(sequence != parent)[0]
 
 
-def get_mutations(sequence,
-                  parent):
+def get_mutations(sequence, parent):
   """Returns locations and values where sequence and parent disagree.
 
   Args:
@@ -183,7 +204,7 @@ def get_mutations(sequence,
                          '(%d vs. %d).' % (len(sequence), len(parent)))
 
   mutation_positions = get_mutation_positions(sequence, parent)
-  return list(zip(mutation_positions, sequence[mutation_positions]))
+  return tuple(zip(mutation_positions, sequence[mutation_positions]))
 
 
 def get_num_mutations(seqs, parent_seq):
@@ -203,7 +224,7 @@ def apply_mutations(parent,
     allow_same: By default, a ValueError is raised if `mutations` mutate to values
       that are the same as the parent. If this flag is True, this check is ignored.
   """
-  parent = parent.copy()
+  parent = np.array(parent)
   mutations = np.array(mutations)
   if not mutations.size:
     return parent
