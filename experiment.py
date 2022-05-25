@@ -19,6 +19,7 @@ import random as python_random
 from typing import Callable, Sequence, Tuple, Optional
 
 import numpy as np
+from numpy.typing import ArrayLike
 import pandas as pd
 from scipy import stats
 from sklearn import metrics as skm
@@ -34,9 +35,9 @@ import tuning
 import utils
 
 
-def get_fitness_df(sequences: Sequence[Sequence[int]],
-                   fitness_fn: Callable[[Sequence[Sequence[int]]], np.ndarray],
-                   ref_seq: Sequence[int]):
+def get_fitness_df(sequences: ArrayLike,
+                   fitness_fn: Callable[[ArrayLike], np.ndarray],
+                   ref_seq: ArrayLike):
     """Get a DataFrame with the fitness of the requested sequences.
 
     Args:
@@ -49,10 +50,11 @@ def get_fitness_df(sequences: Sequence[Sequence[int]],
     Returns:
       A pd.DataFrame with the fields `sequence`, `num_mutations`, `fitness`.
     """
-    num_mutations = [utils.hamming_distance(ref_seq, s) for s in sequences]
+    sequences = np.array(sequences)
+    num_mutations = [utils.hamming_distance(ref_seq, s) for s in sequences.tolist()]
     df = pd.DataFrame(
         dict(
-            sequence=list(sequences),
+            sequence=sequences.tolist(),
             num_mutations=num_mutations,
             fitness=fitness_fn(sequences)))
     return df
@@ -118,6 +120,21 @@ def get_regression_metrics(y_pred: np.ndarray,
         coef, _ = stats.pearsonr(y_pred, y_true)
         metrics_dict['pearson_r'] = coef
         metrics_dict['r_squared'] = skm.r2_score(y_pred, y_true)
+    return metrics_dict
+
+
+def compute_regression_metrics(model,  # trained
+                               test_df: pd.DataFrame,
+                               vocab_size: int,
+                               flatten_inputs: bool):
+    """Returns regression metrics for a trained model on a given test set."""
+    x_test, y_true = utils.get_x_y_from_df(
+        test_df, vocab_size=vocab_size, flatten=flatten_inputs)
+    y_pred = model.predict(x_test)
+
+    size_dict = {'test_size': len(test_df)}
+    metrics_dict = get_regression_metrics(y_pred, y_true)
+    metrics_dict.update(size_dict)
     return metrics_dict
 
 
@@ -226,9 +243,12 @@ def run_regression_experiment(
         training_set_random_seed: int,
         model_name: str,
         model_random_seed: int,
-        metrics_random_split_fraction: float,
-        metrics_random_split_random_seed: int,
-        metrics_distance_split_radii: Sequence[int]):
+        test_set_distances: Sequence[int],
+        test_set_n: int,
+        test_set_random_seed: int,
+        test_set_max_reuse: int,
+        test_set_singles_top_k: int,
+        test_set_epistatic_top_k: int):
     """Returns metrics for a regression experiment."""
     # Load Potts model landscape
     untuned_landscape = potts_model.load_from_mogwai_npz(mogwai_filepath)
@@ -243,37 +263,64 @@ def run_regression_experiment(
 
     # Sample a training dataset.
     training_random_state = np.random.RandomState(training_set_random_seed)
-    sample_df = get_samples_around_wildtype(landscape,
-                                            training_set_num_samples,
-                                            training_set_min_num_mutations,
-                                            training_set_max_num_mutations,
-                                            training_set_include_singles,
-                                            training_random_state)
+    train_df = get_samples_around_wildtype(landscape,
+                                           training_set_num_samples,
+                                           training_set_min_num_mutations,
+                                           training_set_max_num_mutations,
+                                           training_set_include_singles,
+                                           training_random_state)
 
     # Keras reproducibility
     np.random.seed(model_random_seed)
     python_random.seed(model_random_seed)
     tf.random.set_seed(model_random_seed)
 
-    # Compute regression metrics.
+    # Train model.
     sequence_length = len(landscape.wildtype_sequence)
-    model, flatten_inputs = models.get_model(model_name, sequence_length,
+    model, flatten_inputs = models.get_model(model_name,
+                                             sequence_length,
                                              landscape.vocab_size)
-    metrics_random_state = np.random.RandomState(metrics_random_split_random_seed)
 
+    fit_model(model, train_df, landscape.vocab_size, flatten_inputs)
     run_metrics = {}
 
-    random_split_metrics = compute_regression_metrics_random_split(
-        model, sample_df, metrics_random_split_fraction, landscape.vocab_size,
-        flatten_inputs, metrics_random_state)
-    run_metrics['random_split'] = random_split_metrics
+    # Compute regression metrics.
+    test_random_state = np.random.RandomState(test_set_random_seed)
+    import functools
+    compute_regression_metrics_for_model = functools.partial(compute_regression_metrics,
+                                                             vocab_size=landscape.vocab_size,
+                                                             flatten_inputs=flatten_inputs)
+    get_fitness_df_for_landscape = functools.partial(get_fitness_df,
+                                                     fitness_fn=landscape.evaluate,
+                                                     ref_seq=landscape.wildtype_sequence)
+    train_metrics = compute_regression_metrics_for_model(model, train_df)
+    run_metrics['train'] = train_metrics
+    for distance in test_set_distances:
+        # epistatic test set
+        epistatic_seqs = epistasis_selection.get_epistatic_seqs_for_landscape(
+            landscape=landscape,
+            distance=distance,
+            n=test_set_n,
+            adaptive=True,
+            max_reuse=test_set_max_reuse,
+            top_k=test_set_epistatic_top_k,
+            random_state=test_random_state)
+        epistatic_test_df = get_fitness_df_for_landscape(epistatic_seqs)
+        epistatic_metrics = compute_regression_metrics_for_model(model, epistatic_test_df)
+        run_metrics[f'epistatic_distance_{distance}'] = epistatic_metrics
 
-    for distance_threshold in metrics_distance_split_radii:
-        distance_metrics = compute_regression_metrics_distance_split(
-            model, sample_df, landscape.wildtype_sequence, distance_threshold,
-            landscape.vocab_size, flatten_inputs)
-        run_metrics['distance_split_{}'.format(
-            distance_threshold)] = distance_metrics
+        # adaptive test set
+        adaptive_seqs = epistasis_selection.get_adaptive_seqs_for_landscape(
+            landscape=landscape,
+            distance=distance,
+            n=test_set_n,
+            adaptive=True,
+            max_reuse=test_set_max_reuse,
+            top_k=test_set_singles_top_k,
+            random_state=test_random_state)
+        adaptive_test_df = get_fitness_df_for_landscape(adaptive_seqs)
+        adaptive_metrics = compute_regression_metrics_for_model(model, adaptive_test_df)
+        run_metrics[f'adaptive_distance_{distance}'] = adaptive_metrics
     return run_metrics
 
 

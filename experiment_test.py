@@ -75,19 +75,23 @@ class ExperimentTest(parameterized.TestCase):
             training_set_random_seed=0,
             model_name=model_name,
             model_random_seed=0,
-            metrics_random_split_fraction=0.8,
-            metrics_random_split_random_seed=0,
-            metrics_distance_split_radii=[1, 2])
+            test_set_distances=[2, ],
+            test_set_n=4,
+            test_set_random_seed=0,
+            test_set_max_reuse=10,
+            test_set_singles_top_k=200,
+            test_set_epistatic_top_k=2000)
         run_one = experiment.run_regression_experiment(**regression_kwargs)  # type: ignore
         run_two = experiment.run_regression_experiment(**regression_kwargs)  # type: ignore
         # Test deterministic runs.
         self.assertEqual(run_one, run_two)
 
+        # test that expected metrics are there.
         expected_split_keys = [
-            'random_split', 'distance_split_1', 'distance_split_2'
+            'train', 'epistatic_distance_2', 'adaptive_distance_2'
         ]
         expected_metric_keys = [
-            'mse', 'std_test', 'std_predicted', 'test_size', 'train_size'
+            'mse', 'std_test', 'std_predicted', 'test_size'
         ]
         for split_key in expected_split_keys:
             self.assertIn(split_key, run_one.keys())

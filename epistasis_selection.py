@@ -16,7 +16,7 @@
 from collections import Counter
 import functools
 import itertools
-from typing import Optional, Iterable, Tuple, List
+from typing import Optional, Iterable, Tuple, List, Sequence
 
 
 import numpy as np
@@ -55,7 +55,7 @@ def combine_k_rounds(num_rounds: int, mutations: Iterable[Tuple[Tuple[int, int],
   return all_samples
 
 
-def filter_mutation_set_by_position(mutation_sets: Iterable[Tuple[Tuple[int, int], ...]], limit: int = 10):
+def filter_mutation_set_by_position(mutation_sets: Iterable[Tuple[Tuple[int, int], ...]], limit: int = 10) -> List[Tuple[Tuple[int, int], ...]]:
   """Return a filtered mutation set, where each position is used a maximum of `limit` times."""
   filtered_mutation_sets = []
   position_counter = Counter()
@@ -68,6 +68,20 @@ def filter_mutation_set_by_position(mutation_sets: Iterable[Tuple[Tuple[int, int
       filtered_mutation_sets.append(mutation_set)
   return filtered_mutation_sets
 
+
+# TODO(nthomas) add test
+def filter_mutation_set_for_reference(mutation_sets: Iterable[Tuple[Tuple[int, int], ...]],
+                                      reference_seq: Sequence[int]) -> List[Tuple[Tuple[int, int], ...]]:
+  filtered_mutation_sets = []
+  for mutation_set in mutation_sets:
+    keep = True
+    for mutation in mutation_set:
+      pos, aa = mutation
+      if reference_seq[pos] == aa:
+        keep = False
+    if keep:
+      filtered_mutation_sets.append(mutation_set)
+  return filtered_mutation_sets
 
 def get_epistatic_seqs_for_landscape(landscape: potts_model.PottsModel,
                                      distance: int,
@@ -102,11 +116,18 @@ def get_epistatic_seqs_for_landscape(landscape: potts_model.PottsModel,
 
   if not top_k:
     top_k = n
+  # TODO(nthomas) sometimes these pairs are ((0, 0) (0, 0)) for test mocks...
+
   mutation_pairs = utils.get_top_n_mutation_pairs(landscape.epistasis_tensor, top_k, lowest=not adaptive)
+
+  # There is no requirement that mutations are different than wildtype, so we filter here
+  mutation_pairs = filter_mutation_set_for_reference(mutation_pairs, reference_seq=landscape.wildtype_sequence)
+  print(f'{len(mutation_pairs)} after filtering {top_k} for reference')
+
   if max_reuse is not None:
     assert max_reuse > 0
     mutation_pairs = filter_mutation_set_by_position(mutation_pairs, limit=max_reuse)
-    print(f'{len(mutation_pairs)} after filtering {top_k}')
+    print(f'{len(mutation_pairs)} after filtering {top_k} with max_reuse {max_reuse}')
 
   num_rounds = distance // 2
   all_combined = combine_k_rounds(num_rounds, mutation_pairs)
