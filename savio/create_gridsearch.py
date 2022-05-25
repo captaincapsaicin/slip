@@ -27,7 +27,7 @@ defaults = {
 
 options = {
     'training_set_random_seed': list(range(20)),
-    'epistatic_horizon': [2.0, 8.0, 16.0, 32.0],
+    'epistatic_horizon': [2.0, 4.0, 6.0, 8.0, 16.0, 32.0],
     'training_set_include_singles': [True, False],
     'model_name': ['linear', 'cnn'],
     'mogwai_filepath': ["/global/home/users/nthomas/git/slip/data/3er7_1_A_model_state_dict.npz",
