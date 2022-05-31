@@ -16,6 +16,7 @@
 """Methods for running optimization trajectories."""
 
 import random as python_random
+import functools
 from typing import Callable, Sequence, Tuple, Optional
 
 import numpy as np
@@ -289,7 +290,6 @@ def run_regression_experiment(
     # Compute regression metrics.
     print('Computing regression metrics on curated tests sets...')
     test_random_state = np.random.RandomState(test_set_random_seed)
-    import functools
     compute_regression_metrics_for_model = functools.partial(compute_regression_metrics,
                                                              vocab_size=landscape.vocab_size,
                                                              flatten_inputs=flatten_inputs)
@@ -300,7 +300,7 @@ def run_regression_experiment(
     run_metrics['train'] = train_metrics
     for distance in test_set_distances:
         # epistatic test set
-        print('Constructing epistatic test set...')
+        print('Constructing adaptive epistatic test set...')
         epistatic_seqs = epistasis_selection.get_epistatic_seqs_for_landscape(
             landscape=landscape,
             distance=distance,
@@ -311,10 +311,23 @@ def run_regression_experiment(
             random_state=test_random_state)
         epistatic_test_df = get_fitness_df_for_landscape(epistatic_seqs)
         epistatic_metrics = compute_regression_metrics_for_model(model, epistatic_test_df)
-        run_metrics[f'epistatic_distance_{distance}'] = epistatic_metrics
+        run_metrics[f'adaptive_epistatic_seqs_distance_{distance}'] = epistatic_metrics
+
+        print('Constructing deleterious epistatic test set...')
+        epistatic_seqs = epistasis_selection.get_epistatic_seqs_for_landscape(
+            landscape=landscape,
+            distance=distance,
+            n=test_set_n,
+            adaptive=False,
+            max_reuse=test_set_max_reuse,
+            top_k=test_set_epistatic_top_k,
+            random_state=test_random_state)
+        epistatic_test_df = get_fitness_df_for_landscape(epistatic_seqs)
+        epistatic_metrics = compute_regression_metrics_for_model(model, epistatic_test_df)
+        run_metrics[f'deleterious_epistatic_seqs_distance_{distance}'] = epistatic_metrics
 
         # adaptive test set
-        print('Constructing adaptive test set...')
+        print('Constructing adaptive singles test set...')
         adaptive_seqs = epistasis_selection.get_adaptive_seqs_for_landscape(
             landscape=landscape,
             distance=distance,
@@ -325,7 +338,7 @@ def run_regression_experiment(
             random_state=test_random_state)
         adaptive_test_df = get_fitness_df_for_landscape(adaptive_seqs)
         adaptive_metrics = compute_regression_metrics_for_model(model, adaptive_test_df)
-        run_metrics[f'adaptive_distance_{distance}'] = adaptive_metrics
+        run_metrics[f'adaptive_singles_seqs_distance_{distance}'] = adaptive_metrics
     return run_metrics
 
 

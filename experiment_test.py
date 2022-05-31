@@ -88,7 +88,10 @@ class ExperimentTest(parameterized.TestCase):
 
         # test that expected metrics are there.
         expected_split_keys = [
-            'train', 'epistatic_distance_2', 'adaptive_distance_2'
+            'train',
+            'adaptive_epistatic_seqs_distance_2',
+            'deleterious_epistatic_seqs_distance_2',
+            'adaptive_singles_seqs_distance_2'
         ]
         expected_metric_keys = [
             'mse', 'std_test', 'std_predicted', 'test_size'
