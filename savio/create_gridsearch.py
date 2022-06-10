@@ -106,6 +106,7 @@ def main():
     write_readable_options_and_defaults(options, defaults, job_directory)
 
     print(get_command_string(job_directory))
+    return job_directory
 
 
 if __name__ == '__main__':
