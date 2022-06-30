@@ -339,7 +339,7 @@ def get_top_n_mutation_pairs(interaction_tensor: np.ndarray,
     top_indexes = np.unravel_index(top_n_flat_indexes, shape=interaction_tensor.shape)
     index_list = np.vstack(top_indexes).T.tolist()
 
-    def _convert_to_mutation_pair(tensor_index):
+    def _convert_to_mutation_pair(tensor_index: Sequence[int]) -> Tuple[Mutation, Mutation]:
         position_0 = tensor_index[0]
         aa_0 = tensor_index[2]
         position_1 = tensor_index[1]
