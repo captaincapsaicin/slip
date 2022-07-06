@@ -38,7 +38,7 @@ def sample_within_hamming_radius(
         min_mutations,
         max_mutations,
         random_state=None):
-    """Return samples that have a constrained distance to `sequence`.
+    """Returns samples that have a constrained distance to `sequence`.
 
     Args:
       sequence: The reference sequence. Must be a 1d vector of ints.

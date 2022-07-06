@@ -17,7 +17,7 @@
 
 import random as python_random
 import functools
-from typing import Callable, Sequence, Tuple, Optional
+from typing import Sequence, Tuple, Optional
 
 import numpy as np
 import pandas as pd

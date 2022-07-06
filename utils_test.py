@@ -346,10 +346,14 @@ class TensorUtilsTest(parameterized.TestCase):
         self.assertEqual(self.mock_tensor[self._get_tensor_idx_from_pair(second_best_pair)], 8)
 
     def test_get_top_n_mutation_pairs_lowest(self):
-        worst_interactions = utils.get_top_n_mutation_pairs(self.mock_tensor, 3, get_highest=False)
-        self.assertEqual(self.mock_tensor[self._get_tensor_idx_from_pair(worst_interactions[0])], -10)
-        self.assertEqual(self.mock_tensor[self._get_tensor_idx_from_pair(worst_interactions[1])], -10)
-        self.assertEqual(self.mock_tensor[self._get_tensor_idx_from_pair(worst_interactions[2])], -9)
+        worst_interactions = utils.get_top_n_mutation_pairs(
+            self.mock_tensor, 3, get_highest=False)
+        self.assertEqual(
+            self.mock_tensor[self._get_tensor_idx_from_pair(worst_interactions[0])], -10)
+        self.assertEqual(
+            self.mock_tensor[self._get_tensor_idx_from_pair(worst_interactions[1])], -10)
+        self.assertEqual(
+            self.mock_tensor[self._get_tensor_idx_from_pair(worst_interactions[2])], -9)
 
 
 class LandscapeUtilsTest(parameterized.TestCase):

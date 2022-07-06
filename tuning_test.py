@@ -21,9 +21,10 @@ from absl.testing import parameterized
 import numpy as np
 from scipy.special import comb
 
-import tuning
 import potts_model
 import sampling
+import tuning
+import utils
 
 
 class TuningParamsTest(parameterized.TestCase):
@@ -97,8 +98,10 @@ class TuningParamsTest(parameterized.TestCase):
             untuned_landscape,
             fraction_adaptive_singles=fraction_adaptive_singles)
 
-        tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
-        actual_fraction_adaptive_singles = tuning.get_fraction_adaptive_singles(tuned_landscape)
+        tuned_landscape = self._get_landscape(
+            wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+        actual_fraction_adaptive_singles = tuning.get_adaptive_single_fraction(
+            tuned_landscape)
 
         num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
         # Because we adjust single mutant fitness, we can only get to within
@@ -111,7 +114,6 @@ class TuningParamsTest(parameterized.TestCase):
     def test_no_adaptives_raises(self):
         wt_seq = [0, 0, 0, 0]
         weight_matrix = np.zeros(shape=(4, 4, 20, 20), dtype=np.float32)
-        import utils
         field_vec = np.zeros(shape=(4, 20), dtype=np.float32) - utils.onehot(wt_seq, num_classes=20)
         dead_landscape = potts_model.PottsModel(weight_matrix, field_vec, wt_seq=wt_seq)
 
@@ -146,14 +148,19 @@ class TuningParamsTest(parameterized.TestCase):
     )
     def test_tune_epistasis(self, wt_seq, seed, desired_fraction):
         untuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed)
-        untuned_fraction_adaptive_singles = tuning.get_fraction_adaptive_singles(untuned_landscape)
+        untuned_fraction_adaptive_singles = tuning.get_adaptive_single_fraction(
+            untuned_landscape)
 
         tuning_kwargs = tuning.get_tuning_kwargs(
             untuned_landscape,
             fraction_reciprocal_adaptive_epistasis=desired_fraction)
 
-        tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
-        _, actual_fraction = tuning.get_epistasis_stats(tuned_landscape)
+        tuned_landscape = self._get_landscape(
+            wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+        doubles_df = tuning.get_doubles_df(
+            tuned_landscape, threshold=0.0, adaptive=True)
+        _, actual_fraction = tuning.get_epistasis_stats(
+            tuned_landscape, doubles_df)
 
         num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
         num_adaptive_singles = num_singles * untuned_fraction_adaptive_singles
@@ -200,10 +207,13 @@ class TuningParamsTest(parameterized.TestCase):
             untuned_landscape,
             epistatic_horizon=desired_horizon)
 
-        tuned_landscape = self._get_landscape(wt_seq=wt_seq, seed=seed, **tuning_kwargs)
+        tuned_landscape = self._get_landscape(
+            wt_seq=wt_seq, seed=seed, **tuning_kwargs)
 
+        # TODO(nthomas) Add direct test - sample K-mutants and show that properties are as expected.
+        # See https://github.com/google-research/slip/pull/9#discussion_r879961779
         actual_horizon = tuning.get_epistatic_horizon(tuned_landscape)
-        # TODO(nthomas) make this exact.
+        # TODO(nthomas) Can we tune the epistatic horizon exactly instead of approximately?
         self.assertAlmostEqual(desired_horizon, actual_horizon, places=3)
 
 # TODO(nthomas) add test for singles and epi offset to act independently...
@@ -241,21 +251,30 @@ class TuningParamsTest(parameterized.TestCase):
 
         num_singles = len(wt_seq) * (untuned_landscape.vocab_size - 1)
         # Because we are adjusting quantiles, we can only get to within
-        # 1 / num_singles of the desired proportion
+        # (+/-) 1 / num_singles of the desired proportion.
+        # e.g. if there are 10 singles, the only possible fractions of adaptive singles are
+        # 0/10, 1/10, 2/10, ... , 9/10, 10/10, so even if the desired fraction is 0.95, we will
+        # be able to achieve 0.9 or 1.0.
         max_singles_proportion_error = 1.0 / num_singles
         self.assertBetween(actual_stats_dict['fraction_adaptive_singles'],
-                           desired_stats_dict['fraction_adaptive_singles'] - max_singles_proportion_error,
+                           desired_stats_dict['fraction_adaptive_singles'] -
+                           max_singles_proportion_error,
                            desired_stats_dict['fraction_adaptive_singles'] + max_singles_proportion_error)
 
-        untuned_fraction_adaptive_singles = tuning.get_landscape_stats(untuned_landscape)['fraction_adaptive_singles']
+        untuned_fraction_adaptive_singles = tuning.get_landscape_stats(
+            untuned_landscape)['fraction_adaptive_singles']
         num_adaptive_singles = num_singles * untuned_fraction_adaptive_singles
 
-        num_adaptive_doubles = comb(num_adaptive_singles, 2)
+        num_adaptive_doubles = len(tuning.get_doubles_df(
+            tuned_landscape, threshold=0.0, adaptive=True))
         # TODO(nthomas) explain that we assume double collisions for safety
-        fudge_factor = 2 * (1.0 / num_adaptive_doubles)
+        # We can only get to within (+/-) 1 / num_doubles.
+        # See the above comment about adaptive single fractions.
+        epistasis_fraction_error = (1.0 / num_adaptive_doubles)
         self.assertBetween(actual_stats_dict['fraction_reciprocal_adaptive_epistasis'],
-                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] - fudge_factor,
-                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] + fudge_factor)
+                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] -
+                           epistasis_fraction_error,
+                           desired_stats_dict['fraction_reciprocal_adaptive_epistasis'] + epistasis_fraction_error)
 
         self.assertAlmostEqual(desired_stats_dict['epistatic_horizon'],
                                actual_stats_dict['epistatic_horizon'],

@@ -364,13 +364,16 @@ def get_top_n_single_mutations(wildtype_sequence,
     Returns:
         A list of tuples of a single mutation tuple (i, a), where i is the position and a is the amino acid class.
     """
-    all_singles = sampling.get_all_single_mutants(wildtype_sequence, vocab_size)
+    all_singles = sampling.get_all_single_mutants(
+        wildtype_sequence, vocab_size)
     fitnesses = fitness_fn(all_singles)
     if get_highest:
         top_n_indexes = np.argsort(-1 * fitnesses)[:top_n]
     else:
         top_n_indexes = np.argsort(fitnesses)[:top_n]
 
-    get_mutations_from_wt = functools.partial(get_mutations, parent=wildtype_sequence)
-    single_mutations = [get_mutations_from_wt(single) for single in all_singles[top_n_indexes]]
+    get_mutations_from_wt = functools.partial(
+        get_mutations, parent=wildtype_sequence)
+    single_mutations = [get_mutations_from_wt(
+        single) for single in all_singles[top_n_indexes]]
     return single_mutations
