@@ -16,7 +16,7 @@
 
 from collections import Counter
 import itertools
-from typing import Iterable, Tuple, List
+from typing import Iterable, List, Sequence, Tuple
 
 import numpy as np
 
@@ -146,6 +146,7 @@ def combine_mutations_and_subset(mutation_sets: Iterable[Tuple[Mutation, ...]],
     Return:
       A List of sequences of distance `target_distance` from the `wildtype_sequence`.
     """
+    mutation_sets = filter_mutation_set_for_reference(mutation_sets, wildtype_sequence)
     all_combined = combine_k_rounds(num_rounds, mutation_sets)
     all_combined = [element for element in all_combined if len(element) == target_distance]
 
